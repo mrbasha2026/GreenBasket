@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { TEAMS, MATCHES, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName, ROUND_NAMES_AR } from '@/lib/wc2026-data';
+import { TEAMS, MATCHES, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } from '@/lib/wc2026-data';
 import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
@@ -350,7 +350,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ width: '104%' }}>
       {showTP && (
         <div className="p-3 rounded-xl border border-[#FFD700]/30 bg-[#FFD700]/5">
           <h3 className="text-sm font-bold text-[#002868] mb-2 text-center">ترتيب فرق المركز الثالث</h3>

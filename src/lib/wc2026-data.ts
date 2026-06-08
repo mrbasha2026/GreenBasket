@@ -358,7 +358,13 @@ export const getTeamRefDisplayName = (ref: string): string => {
   }
   const thirdPlaceMatch = ref.match(/^3(.+)$/);
   if (thirdPlaceMatch) {
-    return `أفضل ثالث`;
+    const eligibleGroups = THIRD_PLACE_ELIGIBLE_GROUPS[ref];
+    if (!eligibleGroups) return `أفضل ثالث`;
+    // Try to determine ranking number from the slot position
+    const slots = ['3ABCDf','3CDFGH','3CEfHI','3EHIJK','3BEFIJ','3AEHIJ','3EFGIJ','3DEIJL'];
+    const slotIndex = slots.indexOf(ref);
+    const rankNum = slotIndex >= 0 ? slotIndex + 1 : '?';
+    return `أفضل ثالث #${rankNum}`;
   }
   const winnerOfMatch = ref.match(/^W(\d+)$/);
   if (winnerOfMatch) {

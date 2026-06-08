@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { TEAMS, MATCHES, GROUP_NAMES_AR, ROUND_NAMES_AR, getTeamRefDisplayName } from '@/lib/wc2026-data';
 import { formatDateAr } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
+import { TeamFlag } from './TeamFlag';
 
 interface MatchCardProps {
   matchId: number;
@@ -22,14 +23,13 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
   // For knockout matches, resolve team names
   const team1Name = match.team1Ref ? (TEAMS[match.team1]?.nameAr || getTeamRefDisplayName(match.team1Ref)) : (TEAMS[match.team1]?.nameAr || match.team1);
   const team2Name = match.team2Ref ? (TEAMS[match.team2]?.nameAr || getTeamRefDisplayName(match.team2Ref)) : (TEAMS[match.team2]?.nameAr || match.team2);
-  const team1Flag = match.team1Ref ? (TEAMS[match.team1]?.flag || '🏆') : (TEAMS[match.team1]?.flag || '⚽');
-  const team2Flag = match.team2Ref ? (TEAMS[match.team2]?.flag || '🏆') : (TEAMS[match.team2]?.flag || '⚽');
-
-  // Check if teams are resolved for knockout
-  const team1Resolved = !match.team1Ref || TEAMS[match.team1] !== undefined;
-  const team2Resolved = !match.team2Ref || TEAMS[match.team2] !== undefined;
+  
   const isRef1 = !!match.team1Ref && !TEAMS[match.team1];
   const isRef2 = !!match.team2Ref && !TEAMS[match.team2];
+  
+  // For resolved knockout teams, use the actual team name for flag lookup
+  const team1Key = match.team1Ref ? match.team1 : match.team1;
+  const team2Key = match.team2Ref ? match.team2 : match.team2;
 
   const hasResult = !!result;
 
@@ -60,7 +60,11 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
         <div className="flex items-center justify-between gap-2">
           {/* Team 1 */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-lg flex-shrink-0">{team1Flag}</span>
+            {!isRef1 ? (
+              <TeamFlag teamName={team1Key} size="md" />
+            ) : (
+              <span className="text-lg">🏆</span>
+            )}
             <span className={`text-sm font-medium truncate ${isRef1 ? 'text-muted-foreground italic' : ''}`}>
               {team1Name}
             </span>
@@ -101,7 +105,11 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
             <span className={`text-sm font-medium truncate ${isRef2 ? 'text-muted-foreground italic' : ''}`}>
               {team2Name}
             </span>
-            <span className="text-lg flex-shrink-0">{team2Flag}</span>
+            {!isRef2 ? (
+              <TeamFlag teamName={team2Key} size="md" />
+            ) : (
+              <span className="text-lg">🏆</span>
+            )}
           </div>
         </div>
       </div>

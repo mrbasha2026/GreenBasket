@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TEAMS } from '@/lib/wc2026-data';
 import { MatchResult } from '@/lib/wc2026-logic';
+import { TeamFlag } from './TeamFlag';
 
 interface ScoreDialogProps {
   matchId: number | null;
@@ -135,7 +136,7 @@ export function ScoreDialog({
             <div className="flex items-center justify-center gap-4 py-4">
               {/* Team 1 */}
               <div className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-3xl">{team1Data?.flag || '⚽'}</span>
+                <TeamFlag teamName={team1} size="lg" />
                 <span className="text-sm font-semibold text-center">
                   {team1Data?.nameAr || team1}
                 </span>
@@ -166,7 +167,7 @@ export function ScoreDialog({
 
               {/* Team 2 */}
               <div className="flex flex-col items-center gap-2 flex-1">
-                <span className="text-3xl">{team2Data?.flag || '⚽'}</span>
+                <TeamFlag teamName={team2} size="lg" />
                 <span className="text-sm font-semibold text-center">
                   {team2Data?.nameAr || team2}
                 </span>

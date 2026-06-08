@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { TEAMS, GROUP_NAMES_AR } from '@/lib/wc2026-data';
 import { GroupStanding } from '@/lib/wc2026-data';
 import { calculateThirdPlaceRanking, getQualifiedThirdPlaceTeams } from '@/lib/wc2026-logic';
+import { TeamFlag } from './TeamFlag';
 
 interface GroupTableProps {
   group: string;
@@ -70,7 +71,7 @@ export function GroupTable({ group, standings, allStandings }: GroupTableProps) 
                   </td>
                   <td className="px-2 py-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-base">{teamData?.flag}</span>
+                      <TeamFlag teamName={team.team} size="sm" />
                       <span className="font-medium text-xs whitespace-nowrap">{teamData?.nameAr || team.team}</span>
                       {isQualified && (
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00A651] flex-shrink-0" title="متأهل" />

@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { TEAMS, MATCHES, ROUND_NAMES_AR, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } from '@/lib/wc2026-data';
 import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
+import { TeamFlag } from './TeamFlag';
 
 interface KnockoutBracketProps {
   onMatchClick: (matchId: number) => void;
@@ -16,7 +17,6 @@ function resolveTeamRef(
   thirdPlaceRanking: ReturnType<typeof calculateThirdPlaceRanking>,
   results: Record<number, MatchResult>,
 ): string | null {
-  // Group winner
   const winnerMatch = ref.match(/^1([A-L])$/);
   if (winnerMatch) {
     const group = winnerMatch[1];
@@ -24,7 +24,6 @@ function resolveTeamRef(
     if (gs && gs.length > 0 && gs[0].played > 0) return gs[0].team;
     return null;
   }
-  // Group runner-up
   const runnerUpMatch = ref.match(/^2([A-L])$/);
   if (runnerUpMatch) {
     const group = runnerUpMatch[1];
@@ -32,7 +31,6 @@ function resolveTeamRef(
     if (gs && gs.length > 1 && gs[1].played > 0) return gs[1].team;
     return null;
   }
-  // Third place reference
   const thirdPlaceRefMatch = ref.match(/^3(.+)$/);
   if (thirdPlaceRefMatch) {
     const eligibleGroups = THIRD_PLACE_ELIGIBLE_GROUPS[ref];
@@ -51,7 +49,6 @@ function resolveTeamRef(
     }
     return null;
   }
-  // Winner of a match
   const winnerOfMatch = ref.match(/^W(\d+)$/);
   if (winnerOfMatch) {
     const matchId = parseInt(winnerOfMatch[1]);
@@ -59,15 +56,16 @@ function resolveTeamRef(
     if (!r) return null;
     const m = MATCHES.find(x => x.id === matchId);
     if (!m) return null;
-    if (r.homeGoals > r.awayGoals) return m.team1;
-    if (r.awayGoals > r.homeGoals) return m.team2;
+    const t1 = resolveTeamRef(m.team1Ref || m.team1, standings, thirdPlaceRanking, results) || m.team1;
+    const t2 = resolveTeamRef(m.team2Ref || m.team2, standings, thirdPlaceRanking, results) || m.team2;
+    if (r.homeGoals > r.awayGoals) return t1;
+    if (r.awayGoals > r.homeGoals) return t2;
     if (r.homePenalties !== undefined && r.awayPenalties !== undefined) {
-      if (r.homePenalties > r.awayPenalties) return m.team1;
-      if (r.awayPenalties > r.homePenalties) return m.team2;
+      if (r.homePenalties > r.awayPenalties) return t1;
+      if (r.awayPenalties > r.homePenalties) return t2;
     }
     return null;
   }
-  // Loser of a match
   const loserOfMatch = ref.match(/^L(\d+)$/);
   if (loserOfMatch) {
     const matchId = parseInt(loserOfMatch[1]);
@@ -75,36 +73,33 @@ function resolveTeamRef(
     if (!r) return null;
     const m = MATCHES.find(x => x.id === matchId);
     if (!m) return null;
-    if (r.homeGoals < r.awayGoals) return m.team1;
-    if (r.awayGoals < r.homeGoals) return m.team2;
+    const t1 = resolveTeamRef(m.team1Ref || m.team1, standings, thirdPlaceRanking, results) || m.team1;
+    const t2 = resolveTeamRef(m.team2Ref || m.team2, standings, thirdPlaceRanking, results) || m.team2;
+    if (r.homeGoals < r.awayGoals) return t1;
+    if (r.awayGoals < r.homeGoals) return t2;
     if (r.homePenalties !== undefined && r.awayPenalties !== undefined) {
-      if (r.homePenalties < r.awayPenalties) return m.team1;
-      if (r.awayPenalties > r.homePenalties) return m.team2;
+      if (r.homePenalties < r.awayPenalties) return t1;
+      if (r.awayPenalties < r.homePenalties) return t2;
     }
     return null;
   }
   return null;
 }
 
-function KnockoutMatchCard({
-  matchId,
-  onMatchClick,
-  standings,
-  thirdPlaceRanking,
-  results,
-}: {
+interface BracketMatchProps {
   matchId: number;
   onMatchClick: (id: number) => void;
   standings: ReturnType<typeof calculateGroupStandings>;
   thirdPlaceRanking: ReturnType<typeof calculateThirdPlaceRanking>;
   results: Record<number, MatchResult>;
-}) {
+}
+
+function BracketMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }: BracketMatchProps) {
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
 
   const result = results[matchId];
 
-  // Resolve team names
   const team1Ref = match.team1Ref || match.team1;
   const team2Ref = match.team2Ref || match.team2;
   const team1Resolved = resolveTeamRef(team1Ref, standings, thirdPlaceRanking, results);
@@ -112,8 +107,8 @@ function KnockoutMatchCard({
 
   const team1Name = team1Resolved ? (TEAMS[team1Resolved]?.nameAr || team1Resolved) : getTeamRefDisplayName(team1Ref);
   const team2Name = team2Resolved ? (TEAMS[team2Resolved]?.nameAr || team2Resolved) : getTeamRefDisplayName(team2Ref);
-  const team1Flag = team1Resolved ? (TEAMS[team1Resolved]?.flag || '🏆') : '🏆';
-  const team2Flag = team2Resolved ? (TEAMS[team2Resolved]?.flag || '🏆') : '🏆';
+  const team1Key = team1Resolved || '';
+  const team2Key = team2Resolved || '';
 
   const isTeam1Winner = result ? (
     result.homeGoals > result.awayGoals ||
@@ -125,56 +120,68 @@ function KnockoutMatchCard({
   ) : false;
 
   return (
-    <Card
-      className="cursor-pointer hover:shadow-lg transition-all duration-200 border-border/50 bg-card/90 overflow-hidden min-w-[220px] !py-0 !gap-0"
+    <div
+      className="cursor-pointer hover:shadow-xl transition-all duration-200 bg-white rounded-xl border border-gray-200/80 overflow-hidden min-w-[240px] shadow-sm hover:border-[#FFD700]/60"
       onClick={() => onMatchClick(matchId)}
     >
-      <div className="bg-gradient-to-l from-[#002868]/15 to-[#002868]/5 px-2 py-1 border-b border-border/20 text-center">
-        <span className="text-[10px] font-semibold text-[#002868]">
-          مباراة {matchId}
-        </span>
+      {/* Header */}
+      <div className="bg-gradient-to-l from-[#002868] to-[#1a3f8f] px-3 py-1.5 flex items-center justify-between">
+        <span className="text-white text-[10px] font-bold">{ROUND_NAMES_AR[match.round]}</span>
+        <span className="text-white/70 text-[10px]">مباراة {matchId}</span>
       </div>
 
       {/* Team 1 */}
-      <div className={`flex items-center justify-between px-2 py-1.5 border-b border-border/10 ${isTeam1Winner ? 'bg-[#00A651]/8' : ''}`}>
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          <span className="text-sm">{team1Flag}</span>
-          <span className={`text-[11px] font-medium truncate ${!team1Resolved ? 'text-muted-foreground italic' : ''} ${isTeam1Winner ? 'text-[#00A651] font-bold' : ''}`}>
+      <div className={`flex items-center justify-between px-3 py-2 border-b border-gray-100 ${isTeam1Winner ? 'bg-[#00A651]/8' : ''}`}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {team1Resolved ? (
+            <TeamFlag teamName={team1Key} size="sm" />
+          ) : (
+            <span className="text-xs">🏆</span>
+          )}
+          <span className={`text-xs font-medium truncate ${!team1Resolved ? 'text-muted-foreground italic' : ''} ${isTeam1Winner ? 'text-[#00A651] font-bold' : ''}`}>
             {team1Name}
           </span>
         </div>
-        <span className="text-sm font-bold w-5 text-center">
-          {result ? result.homeGoals : '-'}
-        </span>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {result && (
+            <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${isTeam1Winner ? 'bg-[#00A651] text-white' : 'bg-gray-100 text-gray-600'}`}>
+              {result.homeGoals}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Team 2 */}
-      <div className={`flex items-center justify-between px-2 py-1.5 ${isTeam2Winner ? 'bg-[#00A651]/8' : ''}`}>
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          <span className="text-sm">{team2Flag}</span>
-          <span className={`text-[11px] font-medium truncate ${!team2Resolved ? 'text-muted-foreground italic' : ''} ${isTeam2Winner ? 'text-[#00A651] font-bold' : ''}`}>
+      <div className={`flex items-center justify-between px-3 py-2 ${isTeam2Winner ? 'bg-[#00A651]/8' : ''}`}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {team2Resolved ? (
+            <TeamFlag teamName={team2Key} size="sm" />
+          ) : (
+            <span className="text-xs">🏆</span>
+          )}
+          <span className={`text-xs font-medium truncate ${!team2Resolved ? 'text-muted-foreground italic' : ''} ${isTeam2Winner ? 'text-[#00A651] font-bold' : ''}`}>
             {team2Name}
           </span>
         </div>
-        <span className="text-sm font-bold w-5 text-center">
-          {result ? result.awayGoals : '-'}
-        </span>
-      </div>
-
-      {/* Penalties */}
-      {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-2 py-0.5 bg-amber-50 text-center">
-          <span className="text-[10px] text-amber-700">
-            ترجيح: {result.homePenalties}-{result.awayPenalties}
-          </span>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {result && (
+            <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${isTeam2Winner ? 'bg-[#00A651] text-white' : 'bg-gray-100 text-gray-600'}`}>
+              {result.awayGoals}
+            </span>
+          )}
         </div>
-      )}
-
-      {/* Venue */}
-      <div className="px-2 py-0.5 bg-muted/20 border-t border-border/10 text-center">
-        <span className="text-[9px] text-muted-foreground">{match.venueAr}</span>
       </div>
-    </Card>
+
+      {/* Penalties & Venue */}
+      <div className="px-3 py-1 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+        {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
+          <span className="text-[9px] text-amber-600 font-medium">
+            ترجيح {result.homePenalties}-{result.awayPenalties}
+          </span>
+        )}
+        <span className="text-[9px] text-muted-foreground mr-auto">{match.venueAr}</span>
+      </div>
+    </div>
   );
 }
 
@@ -183,22 +190,18 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
   const standings = useMemo(() => calculateGroupStandings(results), [results]);
   const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
 
-  const rounds = [
-    { key: 'r32', name: ROUND_NAMES_AR['r32'], matchIds: MATCHES.filter(m => m.round === 'r32').map(m => m.id) },
-    { key: 'r16', name: ROUND_NAMES_AR['r16'], matchIds: MATCHES.filter(m => m.round === 'r16').map(m => m.id) },
-    { key: 'qf', name: ROUND_NAMES_AR['qf'], matchIds: MATCHES.filter(m => m.round === 'qf').map(m => m.id) },
-    { key: 'sf', name: ROUND_NAMES_AR['sf'], matchIds: MATCHES.filter(m => m.round === 'sf').map(m => m.id) },
-    { key: '3rd', name: ROUND_NAMES_AR['3rd'], matchIds: MATCHES.filter(m => m.round === '3rd').map(m => m.id) },
-    { key: 'final', name: ROUND_NAMES_AR['final'], matchIds: MATCHES.filter(m => m.round === 'final').map(m => m.id) },
-  ];
+  const ctx = { standings, thirdPlaceRanking, results, onMatchClick };
+
+  // Third Place Ranking Summary
+  const showThirdPlaceRanking = thirdPlaceRanking.some(tp => tp.points > 0);
 
   return (
     <div className="space-y-6">
-      {/* Third Place Ranking Summary */}
-      {thirdPlaceRanking.some(tp => tp.points > 0) && (
+      {/* Third Place Ranking */}
+      {showThirdPlaceRanking && (
         <Card className="p-4 border-[#FFD700]/30 bg-[#FFD700]/5 !py-4">
           <h3 className="text-sm font-bold text-[#002868] mb-3 text-center">
-            🏅 ترتيب فرق المركز الثالث
+            ترتيب فرق المركز الثالث
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
             {thirdPlaceRanking.map((tp, idx) => {
@@ -212,7 +215,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
                   }`}
                 >
                   <span className="font-bold text-muted-foreground w-4">{idx + 1}</span>
-                  <span>{teamData?.flag}</span>
+                  {teamData && <TeamFlag teamName={tp.team} size="sm" />}
                   <span className="truncate font-medium">{teamData?.nameAr}</span>
                   <span className="mr-auto font-bold text-[#002868]">{tp.points}</span>
                 </div>
@@ -222,39 +225,144 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
         </Card>
       )}
 
-      {/* Bracket visualization */}
-      <div className="overflow-x-auto pb-4">
-        <div className="inline-flex gap-4 min-w-max items-stretch">
-          {rounds.map((round, roundIdx) => {
-            // Calculate vertical spacing to align matches
-            const matchCount = round.matchIds.length;
-            const prevRoundCount = roundIdx > 0 ? rounds[roundIdx - 1].matchIds.length : 0;
-            // Each match takes a fixed height, spacing increases with each round
-            const matchSpacing = roundIdx === 0 ? '8px' : roundIdx === 1 ? '20px' : roundIdx === 2 ? '44px' : '80px';
+      {/* Bracket - Responsive Section-by-Section Layout */}
+      <div className="space-y-8">
+        {/* Round of 32 */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-bl from-[#002868] to-[#1a3f8f] flex items-center justify-center">
+              <span className="text-white text-xs font-bold">32</span>
+            </div>
+            <h3 className="text-lg font-bold text-[#002868]">دور الـ 32</h3>
+            <span className="text-xs text-muted-foreground">28 يونيو - 3 يوليو</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {MATCHES.filter(m => m.round === 'r32').map(match => (
+              <BracketMatch key={match.id} matchId={match.id} {...ctx} />
+            ))}
+          </div>
+        </div>
 
-            return (
-              <div key={round.key} className="flex flex-col">
-                {/* Round header */}
-                <div className="bg-gradient-to-l from-[#002868] to-[#002868]/80 px-3 py-2 rounded-lg text-center mb-3 flex-shrink-0">
-                  <h3 className="text-white font-bold text-xs">{round.name}</h3>
-                </div>
+        {/* Connector line */}
+        <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-px h-6 bg-gradient-to-b from-[#002868]/30 to-[#E31837]/30" />
+            <div className="w-8 h-8 rounded-full bg-gradient-to-bl from-[#002868] to-[#E31837] flex items-center justify-center shadow-lg">
+              <span className="text-white text-xs font-bold">⬇</span>
+            </div>
+            <div className="w-px h-6 bg-gradient-to-b from-[#E31837]/30 to-transparent" />
+          </div>
+        </div>
 
-                {/* Matches */}
-                <div className="flex flex-col flex-1 justify-around" style={{ gap: matchSpacing }}>
-                  {round.matchIds.map(matchId => (
-                    <KnockoutMatchCard
-                      key={matchId}
-                      matchId={matchId}
-                      onMatchClick={onMatchClick}
-                      standings={standings}
-                      thirdPlaceRanking={thirdPlaceRanking}
-                      results={results}
-                    />
-                  ))}
-                </div>
+        {/* Round of 16 */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-bl from-[#E31837] to-[#c4122d] flex items-center justify-center">
+              <span className="text-white text-xs font-bold">16</span>
+            </div>
+            <h3 className="text-lg font-bold text-[#E31837]">دور الـ 16</h3>
+            <span className="text-xs text-muted-foreground">4 - 7 يوليو</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {MATCHES.filter(m => m.round === 'r16').map(match => (
+              <BracketMatch key={match.id} matchId={match.id} {...ctx} />
+            ))}
+          </div>
+        </div>
+
+        {/* Connector line */}
+        <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-px h-6 bg-gradient-to-b from-[#E31837]/30 to-[#FFD700]/30" />
+            <div className="w-8 h-8 rounded-full bg-gradient-to-bl from-[#FFD700] to-[#e6c200] flex items-center justify-center shadow-lg">
+              <span className="text-[#002868] text-xs font-bold">⬇</span>
+            </div>
+            <div className="w-px h-6 bg-gradient-to-b from-[#FFD700]/30 to-transparent" />
+          </div>
+        </div>
+
+        {/* Quarter-finals */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-bl from-[#FFD700] to-[#e6c200] flex items-center justify-center">
+              <span className="text-[#002868] text-xs font-bold">4</span>
+            </div>
+            <h3 className="text-lg font-bold text-[#b8960f]">ربع النهائي</h3>
+            <span className="text-xs text-muted-foreground">9 - 11 يوليو</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
+            {MATCHES.filter(m => m.round === 'qf').map(match => (
+              <BracketMatch key={match.id} matchId={match.id} {...ctx} />
+            ))}
+          </div>
+        </div>
+
+        {/* Connector line */}
+        <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-px h-6 bg-gradient-to-b from-[#FFD700]/30 to-[#00A651]/30" />
+            <div className="w-8 h-8 rounded-full bg-gradient-to-bl from-[#00A651] to-[#008f45] flex items-center justify-center shadow-lg">
+              <span className="text-white text-xs font-bold">⬇</span>
+            </div>
+            <div className="w-px h-6 bg-gradient-to-b from-[#00A651]/30 to-transparent" />
+          </div>
+        </div>
+
+        {/* Semi-finals */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-bl from-[#00A651] to-[#008f45] flex items-center justify-center">
+              <span className="text-white text-xs font-bold">SF</span>
+            </div>
+            <h3 className="text-lg font-bold text-[#00A651]">نصف النهائي</h3>
+            <span className="text-xs text-muted-foreground">14 - 15 يوليو</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto">
+            {MATCHES.filter(m => m.round === 'sf').map(match => (
+              <BracketMatch key={match.id} matchId={match.id} {...ctx} />
+            ))}
+          </div>
+        </div>
+
+        {/* Connector line */}
+        <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-px h-6 bg-gradient-to-b from-[#00A651]/30 to-[#002868]/30" />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-bl from-[#002868] to-[#E31837] flex items-center justify-center shadow-xl">
+              <span className="text-white text-sm font-bold">🏆</span>
+            </div>
+            <div className="w-px h-6 bg-gradient-to-b from-[#002868]/30 to-transparent" />
+          </div>
+        </div>
+
+        {/* 3rd Place + Final */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          {/* 3rd Place */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-bl from-[#8B8000] to-[#6B6300] flex items-center justify-center">
+                <span className="text-white text-[10px] font-bold">3rd</span>
               </div>
-            );
-          })}
+              <h3 className="text-base font-bold text-[#8B8000]">المركز الثالث</h3>
+            </div>
+            {MATCHES.filter(m => m.round === '3rd').map(match => (
+              <BracketMatch key={match.id} matchId={match.id} {...ctx} />
+            ))}
+          </div>
+
+          {/* Final */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-bl from-[#FFD700] to-[#FF8C00] flex items-center justify-center shadow-md">
+                <span className="text-[#002868] text-[10px] font-bold">🏆</span>
+              </div>
+              <h3 className="text-base font-bold text-[#002868]">النهائي</h3>
+              <span className="text-xs text-muted-foreground">19 يوليو</span>
+            </div>
+            {MATCHES.filter(m => m.round === 'final').map(match => (
+              <BracketMatch key={match.id} matchId={match.id} {...ctx} />
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -135,6 +135,7 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
   const team1Data = TEAMS[team1Key];
   const team2Data = TEAMS[team2Key];
 
+  const isDraw = result ? (result.homeGoals === result.awayGoals && (result.homePenalties === undefined || result.awayPenalties === undefined || result.homePenalties === result.awayPenalties)) : false;
   const isTeam1Winner = result ? (
     result.homeGoals > result.awayGoals ||
     (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.homePenalties > result.awayPenalties)
@@ -143,6 +144,8 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
     result.awayGoals > result.homeGoals ||
     (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.awayPenalties > result.homePenalties)
   ) : false;
+  const isTeam1Loser = result ? (!isTeam1Winner && !isDraw) : false;
+  const isTeam2Loser = result ? (!isTeam2Winner && !isDraw) : false;
 
   return (
     <Card
@@ -194,7 +197,7 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
             ) : (
               <span className="text-lg">🏆</span>
             )}
-            <span className={`text-sm font-medium truncate ${!isTeam1Resolved ? 'text-muted-foreground italic' : ''} ${isTeam1Winner ? 'text-[#00A651] font-bold' : ''}`}>
+            <span className={`text-sm font-medium truncate ${!isTeam1Resolved ? 'text-muted-foreground italic' : ''} ${isTeam1Winner ? 'text-[#00A651] font-bold' : ''} ${isTeam1Loser ? 'text-[#E31837] font-bold' : ''} ${isDraw ? 'text-[#D4A017] font-bold' : ''}`}>
               {team1Name}
             </span>
           </div>
@@ -203,11 +206,11 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {hasResult ? (
               <div className="flex items-center gap-1">
-                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-md ${isTeam1Winner ? 'bg-[#00A651]' : 'bg-[#002868]'} text-white font-bold text-sm`}>
+                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-md ${isTeam1Winner ? 'bg-[#00A651]' : isTeam1Loser ? 'bg-[#E31837]' : isDraw ? 'bg-[#D4A017]' : 'bg-[#002868]'} text-white font-bold text-sm`}>
                   {result.homeGoals}
                 </span>
                 <span className="text-muted-foreground text-xs">-</span>
-                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-md ${isTeam2Winner ? 'bg-[#00A651]' : 'bg-[#002868]'} text-white font-bold text-sm`}>
+                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-md ${isTeam2Winner ? 'bg-[#00A651]' : isTeam2Loser ? 'bg-[#E31837]' : isDraw ? 'bg-[#D4A017]' : 'bg-[#002868]'} text-white font-bold text-sm`}>
                   {result.awayGoals}
                 </span>
                 {result.homePenalties !== undefined && result.awayPenalties !== undefined && (
@@ -231,7 +234,7 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
 
           {/* Team 2 */}
           <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-            <span className={`text-sm font-medium truncate ${!isTeam2Resolved ? 'text-muted-foreground italic' : ''} ${isTeam2Winner ? 'text-[#00A651] font-bold' : ''}`}>
+            <span className={`text-sm font-medium truncate ${!isTeam2Resolved ? 'text-muted-foreground italic' : ''} ${isTeam2Winner ? 'text-[#00A651] font-bold' : ''} ${isTeam2Loser ? 'text-[#E31837] font-bold' : ''} ${isDraw ? 'text-[#D4A017] font-bold' : ''}`}>
               {team2Name}
             </span>
             {isTeam2Resolved && team2Data ? (

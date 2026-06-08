@@ -86,7 +86,7 @@ function resolveTeamRef(
   return null;
 }
 
-// Lightweight bracket match card with flag prominent
+// Bracket match card - compact, data visible directly
 interface BracketMatchProps {
   matchId: number;
   onMatchClick: (id: number) => void;
@@ -118,34 +118,31 @@ function BracketMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, res
   const isTeam1Loser = result ? (!isTeam1Winner && !isDraw) : false;
   const isTeam2Loser = result ? (!isTeam2Winner && !isDraw) : false;
 
-  const renderTeamRow = (
+  const teamRow = (
     teamResolved: string | null,
     teamRef: string,
     isWinner: boolean,
     isLoser: boolean,
     goals: number | undefined,
-    side: 'home' | 'away',
   ) => {
     const teamName = teamResolved ? (TEAMS[teamResolved]?.nameAr || teamResolved) : null;
-    const refLabel = teamRef.replace(/^1([A-L])$/, '1$1').replace(/^2([A-L])$/, '2$1').replace(/^3.+$/, '3rd').replace(/^W(\d+)$/, 'W$1').replace(/^L(\d+)$/, 'L$1');
-
-    let bgClass = '';
-    if (isWinner) bgClass = 'bg-[#00A651]/15';
-    else if (isLoser) bgClass = 'bg-[#E31837]/10';
-    else if (isDraw) bgClass = 'bg-[#D4A017]/10';
+    let bg = '';
+    if (isWinner) bg = 'bg-[#00A651]/15';
+    else if (isLoser) bg = 'bg-[#E31837]/10';
+    else if (isDraw) bg = 'bg-[#D4A017]/10';
 
     return (
-      <div className={`flex items-center gap-1 px-1.5 py-[4px] min-h-[26px] ${bgClass}`}>
+      <div className={`flex items-center gap-1 px-2 py-[5px] min-h-[28px] ${bg}`}>
         {teamResolved ? (
           <TeamFlag teamName={teamResolved} size="sm" />
         ) : (
-          <span className="w-5 h-[14px] flex-shrink-0 rounded-sm bg-[#1a4a8e]/40 flex items-center justify-center text-[7px] text-white/30">?</span>
+          <span className="w-5 h-[14px] flex-shrink-0 rounded-sm bg-[#1a4a8e]/40 flex items-center justify-center text-[8px] text-white/30">?</span>
         )}
-        <span className={`text-[10px] truncate flex-1 leading-tight ${!teamResolved ? 'text-white/25 italic' : ''} ${isWinner ? 'text-[#00A651] font-bold' : ''} ${isLoser ? 'text-[#E31837]' : ''} ${isDraw ? 'text-[#D4A017]' : ''} ${!isWinner && !isLoser && !isDraw && teamResolved ? 'text-white/85' : ''}`}>
+        <span className={`text-[11px] truncate flex-1 leading-tight ${!teamResolved ? 'text-white/30 italic' : ''} ${isWinner ? 'text-[#00A651] font-bold' : ''} ${isLoser ? 'text-[#E31837]' : ''} ${isDraw ? 'text-[#D4A017] font-bold' : ''} ${!isWinner && !isLoser && !isDraw && teamResolved ? 'text-white/90' : ''}`}>
           {teamName || getTeamRefDisplayName(teamRef)}
         </span>
         {result !== undefined && (
-          <span className={`text-[11px] font-bold w-5 text-center flex-shrink-0 ${isWinner ? 'text-[#00A651]' : isLoser ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-white/50'}`}>
+          <span className={`text-[12px] font-bold min-w-[18px] text-center flex-shrink-0 ${isWinner ? 'text-[#00A651]' : isLoser ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-white/50'}`}>
             {goals}
           </span>
         )}
@@ -155,50 +152,55 @@ function BracketMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, res
 
   return (
     <div
-      className="cursor-pointer hover:ring-2 hover:ring-[#FFD700]/50 hover:bg-[#0d3060] transition-all duration-150 rounded-md overflow-hidden w-[155px] bg-[#081e42] border border-[#1a4a8e]/40"
+      className="cursor-pointer hover:ring-2 hover:ring-[#FFD700]/40 hover:bg-[#0d3060] transition-all duration-150 rounded-lg overflow-hidden bg-[#081e42] border border-[#1a4a8e]/40"
       onClick={() => onMatchClick(matchId)}
     >
-      {renderTeamRow(team1Resolved, team1Ref, isTeam1Winner, isTeam1Loser, result?.homeGoals, 'home')}
-      <div className="h-px bg-[#1a4a8e]/40" />
-      {renderTeamRow(team2Resolved, team2Ref, isTeam2Winner, isTeam2Loser, result?.awayGoals, 'away')}
+      {teamRow(team1Resolved, team1Ref, isTeam1Winner, isTeam1Loser, result?.homeGoals)}
+      <div className="h-px bg-[#1a4a8e]/30" />
+      {teamRow(team2Resolved, team2Ref, isTeam2Winner, isTeam2Loser, result?.awayGoals)}
       {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-1.5 py-[2px] bg-[#002868]/30 border-t border-[#1a4a8e]/30">
-          <span className="text-[7px] text-amber-400">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
+        <div className="px-2 py-[2px] bg-[#002868]/30 border-t border-[#1a4a8e]/30">
+          <span className="text-[8px] text-amber-400">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
         </div>
       )}
     </div>
   );
 }
 
-// SVG connector that merges two matches into one (right side - feeds into match on right)
-function ConnectorRTL({ h = 100 }: { h?: number }) {
-  const y1 = h * 0.25;
-  const y2 = h * 0.75;
-  const ym = h * 0.5;
+// SVG Connectors
+function ConnectorLTR({ h = 80 }: { h?: number }) {
+  const y1 = h * 0.25, y2 = h * 0.75, ym = h * 0.5;
   return (
-    <svg width="24" height={h} viewBox={`0 0 24 ${h}`} className="flex-shrink-0" preserveAspectRatio="none">
-      <line x1="0" y1={y1} x2="12" y2={y1} stroke="#4a8ad4" strokeWidth="1.5" />
-      <line x1="0" y1={y2} x2="12" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
-      <line x1="12" y1={y1} x2="12" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
-      <line x1="12" y1={ym} x2="24" y2={ym} stroke="#4a8ad4" strokeWidth="1.5" />
-      <circle cx="12" cy={ym} r="2.5" fill="#FFD700" />
+    <svg width="20" height={h} viewBox={`0 0 20 ${h}`} className="flex-shrink-0" preserveAspectRatio="none">
+      <line x1="10" y1={y1} x2="20" y2={y1} stroke="#4a8ad4" strokeWidth="1.5" />
+      <line x1="10" y1={y2} x2="20" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
+      <line x1="10" y1={y1} x2="10" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
+      <line x1="0" y1={ym} x2="10" y2={ym} stroke="#4a8ad4" strokeWidth="1.5" />
+      <circle cx="10" cy={ym} r="2" fill="#FFD700" />
     </svg>
   );
 }
 
-// SVG connector that merges two matches into one (left side - feeds into match on left)
-function ConnectorLTR({ h = 100 }: { h?: number }) {
-  const y1 = h * 0.25;
-  const y2 = h * 0.75;
-  const ym = h * 0.5;
+function ConnectorRTL({ h = 80 }: { h?: number }) {
+  const y1 = h * 0.25, y2 = h * 0.75, ym = h * 0.5;
   return (
-    <svg width="24" height={h} viewBox={`0 0 24 ${h}`} className="flex-shrink-0" preserveAspectRatio="none">
-      <line x1="12" y1={y1} x2="24" y2={y1} stroke="#4a8ad4" strokeWidth="1.5" />
-      <line x1="12" y1={y2} x2="24" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
-      <line x1="12" y1={y1} x2="12" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
-      <line x1="0" y1={ym} x2="12" y2={ym} stroke="#4a8ad4" strokeWidth="1.5" />
-      <circle cx="12" cy={ym} r="2.5" fill="#FFD700" />
+    <svg width="20" height={h} viewBox={`0 0 20 ${h}`} className="flex-shrink-0" preserveAspectRatio="none">
+      <line x1="0" y1={y1} x2="10" y2={y1} stroke="#4a8ad4" strokeWidth="1.5" />
+      <line x1="0" y1={y2} x2="10" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
+      <line x1="10" y1={y1} x2="10" y2={y2} stroke="#4a8ad4" strokeWidth="1.5" />
+      <line x1="10" y1={ym} x2="20" y2={ym} stroke="#4a8ad4" strokeWidth="1.5" />
+      <circle cx="10" cy={ym} r="2" fill="#FFD700" />
     </svg>
+  );
+}
+
+// Round label
+function RoundLabel({ title, sub }: { title: string; sub: string }) {
+  return (
+    <div className="inline-flex flex-col items-center px-2 py-0.5 rounded bg-[#1a4a8e]/30 border border-[#2a5a9e]/20">
+      <span className="text-white/80 text-[9px] font-bold">{title}</span>
+      <span className="text-white/30 text-[6px]">{sub}</span>
+    </div>
   );
 }
 
@@ -208,54 +210,20 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
   const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
 
   const ctx = { standings, thirdPlaceRanking, results, onMatchClick };
-
   const showThirdPlaceRanking = thirdPlaceRanking.some(tp => tp.points > 0);
 
-  // ========================
   // BRACKET STRUCTURE
-  // ========================
-  // LEFT HALF (converges to SF 102 → Final)
-  // R32 outermost left → R16 → QF → SF → Final center
-  const leftR32 = [76, 79, 85, 86];  // matches on far-left edge
-  const leftR16 = [91, 96];           // matches feeding from leftR32 pairs
-  const leftQF = [99];               // feeding from leftR16 pair
-  const leftSF = 102;                // feeding from leftQF
+  // LEFT HALF: R32 far-left → R16 → QF → SF → Final center
+  const leftR32 = [76, 78, 79, 80, 85, 87, 86, 88];
+  const leftR16 = [91, 92, 95, 96];
+  const leftQF = [99, 100];
+  const leftSF = 102;
 
-  // RIGHT HALF (converges to SF 101 → Final)
-  // R32 outermost right → R16 → QF → SF → Final center
-  const rightR32 = [73, 74, 81, 83]; // matches on far-right edge
-  const rightR16 = [89, 93];         // matches feeding from rightR32 pairs
-  const rightQF = [97];             // feeding from rightR16 pair
-  const rightSF = 101;              // feeding from rightQF
-
-  // R32 matches that are second in each pair (closer to center)
-  const leftR32Inner = [78, 80, 87, 88];
-  const rightR32Inner = [75, 77, 82, 84];
-
-  const CW = 155; // card width
-  const CONN = 24; // connector width
-  const CENTER_W = 160;
-
-  // Render a round column (stack of match cards)
-  const renderRoundCol = (matchIds: number[], gap: string = 'gap-1') => (
-    <div className={`flex flex-col justify-around ${gap}`} style={{ width: CW }}>
-      {matchIds.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-    </div>
-  );
-
-  // Render connector column
-  const renderConnCol = (count: number, direction: 'ltr' | 'rtl', heights: number[] = []) => (
-    <div className="flex flex-col justify-around" style={{ width: CONN }}>
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex-1 flex items-center">
-          {direction === 'rtl'
-            ? <ConnectorRTL h={heights[i] || 80} />
-            : <ConnectorLTR h={heights[i] || 80} />
-          }
-        </div>
-      ))}
-    </div>
-  );
+  // RIGHT HALF: SF → QF → R16 → R32 far-right
+  const rightR32 = [73, 75, 74, 77, 81, 82, 83, 84];
+  const rightR16 = [89, 90, 93, 94];
+  const rightQF = [97, 98];
+  const rightSF = 101;
 
   return (
     <div className="space-y-6">
@@ -280,8 +248,8 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
         </div>
       )}
 
-      {/* ==================== DESKTOP BRACKET ==================== */}
-      <div className="hidden xl:block bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-5 shadow-xl border border-[#1a4a8e]/30 overflow-x-auto">
+      {/* ==================== DESKTOP BRACKET (xl+) ==================== */}
+      <div className="hidden xl:block bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-5 shadow-xl border border-[#1a4a8e]/30">
         {/* Trophy header */}
         <div className="flex justify-center mb-4">
           <div className="flex flex-col items-center">
@@ -292,70 +260,66 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
           </div>
         </div>
 
-        {/* Round labels header */}
-        <div className="flex items-center justify-center mb-3" style={{ minWidth: `${CW * 8 + CONN * 8 + CENTER_W}px` }}>
-          {/* Left side labels: R32 (far) → R16 → QF → SF (near center) */}
-          <div className="flex items-center flex-1">
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="دور الـ 32" sub="28 يونيو - 3 يوليو" /></div>
-            <div style={{ width: CONN }} className="flex-shrink-0" />
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="دور الـ 16" sub="4 - 7 يوليو" /></div>
-            <div style={{ width: CONN }} className="flex-shrink-0" />
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="ربع النهائي" sub="9 - 11 يوليو" /></div>
-            <div style={{ width: CONN }} className="flex-shrink-0" />
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="نصف النهائي" sub="14 - 15 يوليو" /></div>
+        {/* Round labels */}
+        <div className="flex items-center justify-center mb-3 gap-0">
+          <div className="flex-1 flex items-center">
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="دور الـ 32" sub="28 يونيو - 3 يوليو" /></div>
+            <div className="flex-shrink-0" style={{ width: '2%' }} />
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="دور الـ 16" sub="4 - 7 يوليو" /></div>
+            <div className="flex-shrink-0" style={{ width: '2%' }} />
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="ربع النهائي" sub="9 - 11 يوليو" /></div>
+            <div className="flex-shrink-0" style={{ width: '2%' }} />
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="نصف النهائي" sub="14 - 15 يوليو" /></div>
           </div>
-          {/* Center - Final */}
-          <div style={{ width: CENTER_W }} className="flex-shrink-0 text-center"><RoundLabel title="النهائي" sub="19 يوليو" /></div>
-          {/* Right side labels: SF (near center) → QF → R16 → R32 (far) */}
-          <div className="flex items-center flex-1">
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="نصف النهائي" sub="14 - 15 يوليو" /></div>
-            <div style={{ width: CONN }} className="flex-shrink-0" />
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="ربع النهائي" sub="9 - 11 يوليو" /></div>
-            <div style={{ width: CONN }} className="flex-shrink-0" />
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="دور الـ 16" sub="4 - 7 يوليو" /></div>
-            <div style={{ width: CONN }} className="flex-shrink-0" />
-            <div style={{ width: CW }} className="flex-shrink-0 text-center"><RoundLabel title="دور الـ 32" sub="28 يونيو - 3 يوليو" /></div>
+          <div className="flex-shrink-0 text-center" style={{ width: '14%' }}><RoundLabel title="النهائي" sub="19 يوليو" /></div>
+          <div className="flex-1 flex items-center">
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="نصف النهائي" sub="14 - 15 يوليو" /></div>
+            <div className="flex-shrink-0" style={{ width: '2%' }} />
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="ربع النهائي" sub="9 - 11 يوليو" /></div>
+            <div className="flex-shrink-0" style={{ width: '2%' }} />
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="دور الـ 16" sub="4 - 7 يوليو" /></div>
+            <div className="flex-shrink-0" style={{ width: '2%' }} />
+            <div className="flex-shrink-0 text-center" style={{ width: '12%' }}><RoundLabel title="دور الـ 32" sub="28 يونيو - 3 يوليو" /></div>
           </div>
         </div>
 
-        {/* Bracket rows */}
-        <div className="flex items-stretch" style={{ minWidth: `${CW * 8 + CONN * 8 + CENTER_W}px` }}>
-          {/* ====== LEFT HALF: R32 (far) → R16 → QF → SF (near center) ====== */}
+        {/* Bracket Row */}
+        <div className="flex items-stretch">
+          {/* LEFT: R32(far) → R16 → QF → SF(near) */}
           <div className="flex items-stretch flex-1">
-            {/* R32 (outermost left) */}
-            <div className="flex flex-col justify-around gap-0.5" style={{ width: CW }}>
+            {/* R32 */}
+            <div className="flex flex-col justify-around gap-[2px]" style={{ width: '12%' }}>
               {leftR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              {leftR32Inner.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
             </div>
-            <div className="flex flex-col justify-around" style={{ width: CONN }}>
+            <div className="flex flex-col justify-around" style={{ width: '2%' }}>
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex-1 flex items-center"><ConnectorLTR h={62} /></div>
+                <div key={i} className="flex-1 flex items-center"><ConnectorLTR h={68} /></div>
               ))}
             </div>
             {/* R16 */}
-            <div className="flex flex-col justify-around gap-4" style={{ width: CW }}>
+            <div className="flex flex-col justify-around gap-2" style={{ width: '12%' }}>
               {leftR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
             </div>
-            <div className="flex flex-col justify-around" style={{ width: CONN }}>
+            <div className="flex flex-col justify-around" style={{ width: '2%' }}>
               {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="flex-1 flex items-center"><ConnectorLTR h={125} /></div>
+                <div key={i} className="flex-1 flex items-center"><ConnectorLTR h={140} /></div>
               ))}
             </div>
             {/* QF */}
-            <div className="flex flex-col justify-around gap-10" style={{ width: CW }}>
+            <div className="flex flex-col justify-around gap-6" style={{ width: '12%' }}>
               {leftQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
             </div>
-            <div className="flex flex-col justify-around" style={{ width: CONN }}>
-              <div className="flex-1 flex items-center"><ConnectorLTR h={250} /></div>
+            <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+              <div className="flex-1 flex items-center"><ConnectorLTR h={280} /></div>
             </div>
             {/* SF */}
-            <div className="flex flex-col justify-center" style={{ width: CW }}>
+            <div className="flex flex-col justify-center" style={{ width: '12%' }}>
               <BracketMatch matchId={leftSF} {...ctx} />
             </div>
           </div>
 
-          {/* ====== CENTER ====== */}
-          <div className="flex flex-col justify-center items-center gap-4" style={{ width: CENTER_W }}>
+          {/* CENTER: Final + Logo + 3rd Place */}
+          <div className="flex flex-col justify-center items-center" style={{ width: '14%' }}>
             {/* Final */}
             <div>
               <div className="text-center mb-2">
@@ -365,10 +329,14 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
               </div>
               <BracketMatch matchId={104} {...ctx} />
             </div>
+            {/* Large WC2026 Logo between Final and 3rd Place */}
+            <div className="my-4 flex items-center justify-center">
+              <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-24 w-auto opacity-90" />
+            </div>
             {/* 3rd Place */}
             <div>
               <div className="text-center mb-2">
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#6B6300]/80 text-white/70 text-[8px] font-bold border border-[#8B8000]/20">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-[#6B6300]/80 text-white/70 text-[9px] font-bold border border-[#8B8000]/20">
                   المركز الثالث
                 </span>
               </div>
@@ -376,46 +344,44 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
             </div>
           </div>
 
-          {/* ====== RIGHT HALF: SF (near center) → QF → R16 → R32 (far right) ====== */}
+          {/* RIGHT: SF(near) → QF → R16 → R32(far) */}
           <div className="flex items-stretch flex-1">
             {/* SF */}
-            <div className="flex flex-col justify-center" style={{ width: CW }}>
+            <div className="flex flex-col justify-center" style={{ width: '12%' }}>
               <BracketMatch matchId={rightSF} {...ctx} />
             </div>
-            <div className="flex flex-col justify-around" style={{ width: CONN }}>
-              <div className="flex-1 flex items-center"><ConnectorRTL h={250} /></div>
+            <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+              <div className="flex-1 flex items-center"><ConnectorRTL h={280} /></div>
             </div>
             {/* QF */}
-            <div className="flex flex-col justify-around gap-10" style={{ width: CW }}>
+            <div className="flex flex-col justify-around gap-6" style={{ width: '12%' }}>
               {rightQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
             </div>
-            <div className="flex flex-col justify-around" style={{ width: CONN }}>
+            <div className="flex flex-col justify-around" style={{ width: '2%' }}>
               {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="flex-1 flex items-center"><ConnectorRTL h={125} /></div>
+                <div key={i} className="flex-1 flex items-center"><ConnectorRTL h={140} /></div>
               ))}
             </div>
             {/* R16 */}
-            <div className="flex flex-col justify-around gap-4" style={{ width: CW }}>
+            <div className="flex flex-col justify-around gap-2" style={{ width: '12%' }}>
               {rightR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
             </div>
-            <div className="flex flex-col justify-around" style={{ width: CONN }}>
+            <div className="flex flex-col justify-around" style={{ width: '2%' }}>
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex-1 flex items-center"><ConnectorRTL h={62} /></div>
+                <div key={i} className="flex-1 flex items-center"><ConnectorRTL h={68} /></div>
               ))}
             </div>
-            {/* R32 (outermost right) */}
-            <div className="flex flex-col justify-around gap-0.5" style={{ width: CW }}>
+            {/* R32 */}
+            <div className="flex flex-col justify-around gap-[2px]" style={{ width: '12%' }}>
               {rightR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              {rightR32Inner.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ==================== MEDIUM SCREENS (lg) ==================== */}
-      <div className="hidden lg:flex xl:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-4 shadow-xl border border-[#1a4a8e]/30 overflow-x-auto">
+      {/* ==================== LARGE TABLET / SMALL DESKTOP (lg) ==================== */}
+      <div className="hidden lg:flex xl:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-4 shadow-xl border border-[#1a4a8e]/30">
         <div className="flex flex-col items-center w-full">
-          {/* Trophy header */}
           <div className="flex flex-col items-center mb-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-bl from-[#FFD700] to-[#daa520] flex items-center justify-center shadow-lg border border-[#FFD700]/30">
               <Trophy className="w-5 h-5 text-[#002868]" />
@@ -423,116 +389,40 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
             <h2 className="text-white text-sm font-bold mt-1">الأدوار الإقصائية</h2>
           </div>
 
-          <div className="flex items-stretch w-full overflow-x-auto pb-2" style={{ minWidth: '1100px' }}>
-            {/* LEFT: R32(far) → R16 → QF → SF */}
+          <div className="flex items-stretch w-full">
+            {/* LEFT */}
             <div className="flex items-stretch flex-1">
-              <div className="flex flex-col justify-around gap-0.5" style={{ width: CW }}>
+              <div className="flex flex-col justify-around gap-[1px]" style={{ width: '12%' }}>
                 {leftR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-                {leftR32Inner.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
               </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={55} /></div>))}
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={58} /></div>))}
               </div>
-              <div className="flex flex-col justify-around gap-3" style={{ width: CW }}>
+              <div className="flex flex-col justify-around gap-1" style={{ width: '12%' }}>
                 {leftR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
               </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={115} /></div>))}
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={120} /></div>))}
               </div>
-              <div className="flex flex-col justify-around gap-8" style={{ width: CW }}>
+              <div className="flex flex-col justify-around gap-4" style={{ width: '12%' }}>
                 {leftQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
               </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                <div className="flex-1 flex items-center"><ConnectorLTR h={230} /></div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                <div className="flex-1 flex items-center"><ConnectorLTR h={240} /></div>
               </div>
-              <div className="flex flex-col justify-center" style={{ width: CW }}>
+              <div className="flex flex-col justify-center" style={{ width: '12%' }}>
                 <BracketMatch matchId={leftSF} {...ctx} />
               </div>
             </div>
 
             {/* CENTER */}
-            <div className="flex flex-col justify-center items-center gap-3" style={{ width: CENTER_W - 20 }}>
+            <div className="flex flex-col justify-center items-center" style={{ width: '14%' }}>
               <div>
                 <div className="text-center mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[8px] font-bold"><Trophy className="w-2 h-2" /> النهائي</span></div>
                 <BracketMatch matchId={104} {...ctx} />
               </div>
-              <div>
-                <div className="text-center mb-1"><span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#6B6300] text-white/70 text-[7px] font-bold">المركز الثالث</span></div>
-                <BracketMatch matchId={103} {...ctx} />
-              </div>
-            </div>
-
-            {/* RIGHT: SF → QF → R16 → R32(far) */}
-            <div className="flex items-stretch flex-1">
-              <div className="flex flex-col justify-center" style={{ width: CW }}>
-                <BracketMatch matchId={rightSF} {...ctx} />
-              </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                <div className="flex-1 flex items-center"><ConnectorRTL h={230} /></div>
-              </div>
-              <div className="flex flex-col justify-around gap-8" style={{ width: CW }}>
-                {rightQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={115} /></div>))}
-              </div>
-              <div className="flex flex-col justify-around gap-3" style={{ width: CW }}>
-                {rightR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={55} /></div>))}
-              </div>
-              <div className="flex flex-col justify-around gap-0.5" style={{ width: CW }}>
-                {rightR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-                {rightR32Inner.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ==================== TABLET (md) ==================== */}
-      <div className="hidden md:flex lg:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-3 shadow-xl border border-[#1a4a8e]/30 overflow-x-auto">
-        <div className="flex flex-col items-center w-full">
-          <div className="flex flex-col items-center mb-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-bl from-[#FFD700] to-[#daa520] flex items-center justify-center shadow-lg border border-[#FFD700]/30">
-              <Trophy className="w-5 h-5 text-[#002868]" />
-            </div>
-            <h2 className="text-white text-sm font-bold mt-1">الأدوار الإقصائية</h2>
-          </div>
-
-          <div className="flex items-stretch w-full overflow-x-auto pb-2" style={{ minWidth: '900px' }}>
-            {/* LEFT */}
-            <div className="flex items-stretch flex-1">
-              <div className="flex flex-col justify-around gap-0" style={{ width: 130 }}>
-                {leftR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-                {leftR32Inner.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={48} /></div>))}
-              </div>
-              <div className="flex flex-col justify-around gap-2" style={{ width: 130 }}>
-                {leftR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={100} /></div>))}
-              </div>
-              <div className="flex flex-col justify-around gap-6" style={{ width: 130 }}>
-                {leftQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-              </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                <div className="flex-1 flex items-center"><ConnectorLTR h={200} /></div>
-              </div>
-              <div className="flex flex-col justify-center" style={{ width: 130 }}>
-                <BracketMatch matchId={leftSF} {...ctx} />
-              </div>
-            </div>
-
-            {/* CENTER */}
-            <div className="flex flex-col justify-center items-center gap-2" style={{ width: 130 }}>
-              <div>
-                <div className="text-center mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[7px] font-bold"><Trophy className="w-2 h-2" /> النهائي</span></div>
-                <BracketMatch matchId={104} {...ctx} />
+              <div className="my-3 flex items-center justify-center">
+                <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-16 w-auto opacity-80" />
               </div>
               <div>
                 <div className="text-center mb-1"><span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#6B6300] text-white/70 text-[7px] font-bold">المركز الثالث</span></div>
@@ -542,27 +432,105 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
 
             {/* RIGHT */}
             <div className="flex items-stretch flex-1">
-              <div className="flex flex-col justify-center" style={{ width: 130 }}>
+              <div className="flex flex-col justify-center" style={{ width: '12%' }}>
                 <BracketMatch matchId={rightSF} {...ctx} />
               </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                <div className="flex-1 flex items-center"><ConnectorRTL h={200} /></div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                <div className="flex-1 flex items-center"><ConnectorRTL h={240} /></div>
               </div>
-              <div className="flex flex-col justify-around gap-6" style={{ width: 130 }}>
+              <div className="flex flex-col justify-around gap-4" style={{ width: '12%' }}>
                 {rightQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
               </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
-                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={100} /></div>))}
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={120} /></div>))}
               </div>
-              <div className="flex flex-col justify-around gap-2" style={{ width: 130 }}>
+              <div className="flex flex-col justify-around gap-1" style={{ width: '12%' }}>
                 {rightR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
               </div>
-              <div className="flex flex-col justify-around" style={{ width: CONN }}>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={58} /></div>))}
+              </div>
+              <div className="flex flex-col justify-around gap-[1px]" style={{ width: '12%' }}>
+                {rightR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================== TABLET (md) ==================== */}
+      <div className="hidden md:flex lg:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-3 shadow-xl border border-[#1a4a8e]/30">
+        <div className="flex flex-col items-center w-full">
+          <div className="flex flex-col items-center mb-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-bl from-[#FFD700] to-[#daa520] flex items-center justify-center shadow-lg border border-[#FFD700]/30">
+              <Trophy className="w-5 h-5 text-[#002868]" />
+            </div>
+            <h2 className="text-white text-sm font-bold mt-1">الأدوار الإقصائية</h2>
+          </div>
+
+          <div className="flex items-stretch w-full">
+            {/* LEFT */}
+            <div className="flex items-stretch flex-1">
+              <div className="flex flex-col justify-around gap-0" style={{ width: '12%' }}>
+                {leftR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
+              </div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={48} /></div>))}
+              </div>
+              <div className="flex flex-col justify-around gap-1" style={{ width: '12%' }}>
+                {leftR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
+              </div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorLTR h={100} /></div>))}
+              </div>
+              <div className="flex flex-col justify-around gap-3" style={{ width: '12%' }}>
+                {leftQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
+              </div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                <div className="flex-1 flex items-center"><ConnectorLTR h={200} /></div>
+              </div>
+              <div className="flex flex-col justify-center" style={{ width: '12%' }}>
+                <BracketMatch matchId={leftSF} {...ctx} />
+              </div>
+            </div>
+
+            {/* CENTER */}
+            <div className="flex flex-col justify-center items-center" style={{ width: '14%' }}>
+              <div>
+                <div className="text-center mb-1"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[7px] font-bold"><Trophy className="w-2 h-2" /> النهائي</span></div>
+                <BracketMatch matchId={104} {...ctx} />
+              </div>
+              <div className="my-2 flex items-center justify-center">
+                <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-12 w-auto opacity-80" />
+              </div>
+              <div>
+                <div className="text-center mb-1"><span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#6B6300] text-white/70 text-[7px] font-bold">المركز الثالث</span></div>
+                <BracketMatch matchId={103} {...ctx} />
+              </div>
+            </div>
+
+            {/* RIGHT */}
+            <div className="flex items-stretch flex-1">
+              <div className="flex flex-col justify-center" style={{ width: '12%' }}>
+                <BracketMatch matchId={rightSF} {...ctx} />
+              </div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                <div className="flex-1 flex items-center"><ConnectorRTL h={200} /></div>
+              </div>
+              <div className="flex flex-col justify-around gap-3" style={{ width: '12%' }}>
+                {rightQF.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
+              </div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
+                {Array.from({ length: 2 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={100} /></div>))}
+              </div>
+              <div className="flex flex-col justify-around gap-1" style={{ width: '12%' }}>
+                {rightR16.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
+              </div>
+              <div className="flex flex-col justify-around" style={{ width: '2%' }}>
                 {Array.from({ length: 4 }).map((_, i) => (<div key={i} className="flex-1 flex items-center"><ConnectorRTL h={48} /></div>))}
               </div>
-              <div className="flex flex-col justify-around gap-0" style={{ width: 130 }}>
+              <div className="flex flex-col justify-around gap-0" style={{ width: '12%' }}>
                 {rightR32.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
-                {rightR32Inner.map(id => <BracketMatch key={id} matchId={id} {...ctx} />)}
               </div>
             </div>
           </div>
@@ -573,10 +541,8 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
       <div className="md:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-3 shadow-xl border border-[#1a4a8e]/30">
         <div className="flex justify-center mb-3">
           <div className="flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-bl from-[#FFD700] to-[#daa520] flex items-center justify-center shadow-lg border border-[#FFD700]/30">
-              <Trophy className="w-5 h-5 text-[#002868]" />
-            </div>
-            <h2 className="text-white text-sm font-bold mt-1">الأدوار الإقصائية</h2>
+            <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-14 w-auto mb-2" />
+            <h2 className="text-white text-sm font-bold">الأدوار الإقصائية</h2>
           </div>
         </div>
 
@@ -617,16 +583,6 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// Round label component
-function RoundLabel({ title, sub }: { title: string; sub: string }) {
-  return (
-    <div className="inline-flex flex-col items-center px-2 py-0.5 rounded bg-[#1a4a8e]/30 border border-[#2a5a9e]/20">
-      <span className="text-white/80 text-[9px] font-bold">{title}</span>
-      <span className="text-white/30 text-[6px]">{sub}</span>
     </div>
   );
 }

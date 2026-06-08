@@ -33,7 +33,6 @@
 </script>
 
 <div class="knockout-page">
-  <!-- Bracket layout -->
   <div class="bracket-container">
     <div class="bracket-grid">
       <!-- Top Half: R32 → R16 → QF → SF -->
@@ -297,14 +296,14 @@
   .bracket-grid {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    min-width: 800px;
+    gap: 4px;
+    min-width: 750px;
     padding: 4px;
   }
 
   .bracket-row {
     display: flex;
-    gap: 3px;
+    gap: 2px;
     width: 100%;
   }
 
@@ -318,19 +317,20 @@
   .round-label {
     text-align: center;
     color: #FFD700;
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     font-weight: bold;
-    padding: 2px 0;
-    background: rgba(255, 215, 0, 0.08);
+    padding: 1px 0;
+    background: rgba(255, 215, 0, 0.1);
     border-radius: 3px;
     white-space: nowrap;
     margin-bottom: 2px;
+    letter-spacing: 0.5px;
   }
 
   .matches-col {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     flex: 1;
     justify-content: space-around;
   }
@@ -342,13 +342,14 @@
   .match-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
-    padding: 2px 3px;
+    border-radius: 3px;
+    padding: 1px 2px;
     transition: all 0.2s;
   }
 
   .match-card:hover {
-    border-color: rgba(255, 215, 0, 0.25);
+    border-color: rgba(255, 215, 0, 0.3);
+    background: rgba(255, 215, 0, 0.02);
   }
 
   .match-card.featured {
@@ -359,19 +360,19 @@
   .team-row {
     display: flex;
     align-items: center;
-    padding: 1px 3px;
+    padding: 0px 2px;
     border-radius: 2px;
-    min-height: 20px;
-    gap: 2px;
+    min-height: 18px;
+    gap: 1px;
   }
 
   .team-row :global(.name) {
-    font-size: 0.6rem !important;
+    font-size: 0.55rem !important;
   }
 
   .team-row :global(.flag) {
-    width: 16px !important;
-    height: 11px !important;
+    width: 14px !important;
+    height: 10px !important;
   }
 
   .team-row.result-win {
@@ -395,18 +396,22 @@
   }
 
   .score-mini :global(.score-btn) {
-    padding: 1px 5px;
-    min-width: 34px;
-    font-size: 0.6rem;
+    padding: 0px 4px;
+    min-width: 28px;
+    font-size: 0.55rem;
   }
 
   .score-mini :global(.score-display) {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
+  }
+
+  .score-mini :global(.score-placeholder) {
+    font-size: 0.55rem;
   }
 
   .tbd {
     color: rgba(255, 255, 255, 0.25);
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     font-style: italic;
   }
 
@@ -415,23 +420,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
     padding: 6px 0;
     flex-wrap: nowrap;
   }
 
   .final-card {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 165, 0, 0.06));
-    border: 2px solid rgba(255, 215, 0, 0.4);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.08));
+    border: 2px solid rgba(255, 215, 0, 0.5);
     border-radius: 8px;
     padding: 6px 10px;
-    min-width: 130px;
+    min-width: 120px;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.1);
   }
 
   .final-label {
     text-align: center;
     color: #FFD700;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: bold;
     margin-bottom: 3px;
   }
@@ -443,28 +449,29 @@
   }
 
   .third-card {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(205, 127, 50, 0.3);
     border-radius: 8px;
     padding: 6px 10px;
-    min-width: 130px;
+    min-width: 120px;
   }
 
   .third-label {
     text-align: center;
     color: #cd7f32;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: bold;
     margin-bottom: 3px;
   }
 
   .center-logo {
-    width: 180px;
-    height: 180px;
+    width: 140px;
+    height: 140px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.15));
   }
 
   .center-logo img {
@@ -475,12 +482,21 @@
 
   @media (max-width: 768px) {
     .bracket-grid {
-      min-width: 700px;
+      min-width: 650px;
     }
 
     .center-logo {
-      width: 120px;
-      height: 120px;
+      width: 100px;
+      height: 100px;
+    }
+
+    .center-section {
+      gap: 6px;
+    }
+
+    .final-card, .third-card {
+      min-width: 100px;
+      padding: 4px 6px;
     }
   }
 </style>

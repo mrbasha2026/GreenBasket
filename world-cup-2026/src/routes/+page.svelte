@@ -91,10 +91,10 @@
   }
 
   .header-logo {
-    height: 50px;
+    height: 60px;
     width: auto;
     object-fit: contain;
-    border-radius: 6px;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.3));
   }
 
   .reset-btn {

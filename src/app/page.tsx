@@ -26,6 +26,7 @@ export default function Home() {
   const [filterGroup, setFilterGroup] = useState('all');
   const [filterRound, setFilterRound] = useState('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'registered' | 'unregistered'>('all');
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -66,6 +67,12 @@ export default function Home() {
       if (filterRound !== 'all') {
         if (match.round !== filterRound) return false;
       }
+      // Filter by match status (registered/unregistered)
+      if (filterStatus === 'registered') {
+        if (!results[match.id]) return false;
+      } else if (filterStatus === 'unregistered') {
+        if (results[match.id]) return false;
+      }
       // Filter by favorites
       if (showFavoritesOnly) {
         const isFavMatch = favoriteMatches.has(match.id);
@@ -74,7 +81,7 @@ export default function Home() {
       }
       return true;
     });
-  }, [searchQuery, filterGroup, filterRound, showFavoritesOnly, favoriteMatches, favoriteTeams]);
+  }, [searchQuery, filterGroup, filterRound, filterStatus, showFavoritesOnly, favoriteMatches, favoriteTeams, results]);
 
   // Group matches by date
   const matchesByDate = useMemo(() => {
@@ -308,7 +315,7 @@ export default function Home() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 text-center">
           {/* Logo */}
           <div className="flex items-center justify-center mb-4">
-            <img src="/wc2026-logo.svg" alt="كأس العالم 2026" className="h-20 md:h-28" />
+            <img src="/wc2026-logo-white.svg" alt="كأس العالم 2026" className="h-20 md:h-28" />
           </div>
 
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-2 tracking-tight">
@@ -456,6 +463,16 @@ export default function Home() {
                     <SelectItem value="sf">نصف النهائي</SelectItem>
                     <SelectItem value="3rd">المركز الثالث</SelectItem>
                     <SelectItem value="final">النهائي</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'registered' | 'unregistered')}>
+                  <SelectTrigger className="h-8 text-sm w-[130px]">
+                    <SelectValue placeholder="الحالة" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">كل المباريات</SelectItem>
+                    <SelectItem value="registered">مسجلة النتيجة</SelectItem>
+                    <SelectItem value="unregistered">غير مسجلة</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button

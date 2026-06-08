@@ -132,3 +132,27 @@ Implemented 5 specific improvements to the FIFA World Cup 2026 RTL website as re
 Task ID: 1
 Agent: Main Agent
 Task: Implement 5 specific improvements to WC2026 website
+
+---
+Task ID: 2
+Agent: main
+Task: Add match status filter, redesign knockout bracket, use official logo
+
+Work Log:
+- Added filterStatus state variable ('all' | 'registered' | 'unregistered') to page.tsx
+- Added match status filter dropdown in the filter bar (مسجلة النتيجة / غير مسجلة)
+- Updated filterMatches callback to handle registered/unregistered filtering
+- Completely redesigned KnockoutBracket component with official FIFA-style dark blue design
+- New BracketMatchCard with dark blue background matching official FIFA bracket aesthetic
+- BracketSlot component for compact team display with ref labels (1A, 2B, etc.)
+- Teams only shown when resolved, otherwise placeholder ref codes in italic
+- Round headers with gradient pill badges
+- Trophy icon centered at top of bracket
+- Connected official WC2026 SVG logos (white version for header, color version available)
+- Updated header logo to use wc2026-logo-white.svg
+
+Stage Summary:
+- Match status filter (registered/unregistered) added and working
+- Knockout bracket redesigned with official FIFA-style dark blue theme
+- Official WC2026 SVG logos copied to public directory and used in header
+- Build verified successfully

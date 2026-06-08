@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: "موقع كأس العالم 2026 - تابع المباريات والنتائج والترتيب والأدوار الإقصائية",
   keywords: ["كأس العالم", "FIFA", "2026", "World Cup", "مباريات", "نتائج"],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/wc2026-logo.svg",
   },
 };
 

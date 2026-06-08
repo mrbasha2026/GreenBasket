@@ -1,353 +1,53 @@
-# Worklog - Task ID: 1
-
-## Summary
-Implemented all 6 requested changes for the 2026 FIFA World Cup website.
-
-## Changes Made
-
-### 1. Replace colored squares with WC2026 logo
-- Created `/home/z/my-project/public/wc2026-logo.svg` - Custom SVG logo featuring trophy silhouette, "26" in bold style, FIFA WORLD CUP text, hexagonal background, and colors (#002868, #E31837, #FFD700, #00A651)
-- Updated `src/app/page.tsx` - Replaced 3 rotated colored squares div with `<img>` tag pointing to `/wc2026-logo.svg`
-
-### 2. Add favorite teams feature with Favorites tab
-- Updated `src/store/wc2026-store.ts`:
-  - Added `favoriteTeams: Set<string>` and `favoriteMatches: Set<number>` state
-  - Added `toggleFavoriteTeam()` and `toggleFavoriteMatch()` actions
-  - Added localStorage persistence under `wc2026-favorites` and `wc2026-fav-matches` keys
-  - Modified `hydrate()` to load favorites from localStorage
-- Updated `src/app/page.tsx`:
-  - Added "⭐ المفضلة" tab button with badge showing favorites count
-  - Added Favorites tab content with:
-    - Empty state message "لم تقم بإضافة أي مفضلات بعد" when no favorites
-    - Favorite teams section with cards showing group, position, points, W/D/L/GF/GA/GD
-    - Favorite matches section with MatchCard components
-- Updated `src/components/wc2026/GroupTable.tsx`:
-  - Added star icon column to toggle teams as favorites
-
-### 3. Add favorite matches feature
-- Updated `src/components/wc2026/MatchCard.tsx`:
-  - Added star icon button in match header (top-right)
-  - Star fills yellow when favorited, outlined when not
-  - Click on star stops propagation to prevent score dialog opening
-- Updated `src/components/wc2026/KnockoutBracket.tsx`:
-  - Added star icon button in BracketMatch header
-  - Same behavior as MatchCard star toggle
-
-### 4. Add search filters in matches tab
-- Updated `src/app/page.tsx`:
-  - Added filter bar with:
-    - Search input (filters by team name Arabic/English)
-    - Group dropdown (A-L or "all")
-    - Round dropdown (group, R32, R16, QF, SF, 3rd, final, or "all")
-    - Favorites-only toggle button
-  - Filters apply to both group stage and knockout matches
-  - Used shadcn/ui Input, Select, Button components
-
-### 5. Fix group tables to show fully without scrolling
-- Updated `src/app/page.tsx`:
-  - Changed groups grid from `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` to `grid-cols-1 md:grid-cols-2`
-- Updated `src/components/wc2026/GroupTable.tsx`:
-  - Removed `overflow-x-auto` from table container
-  - Changed to `table-fixed` layout with explicit column widths
-  - Reduced font sizes (text-xs, text-[11px], text-[10px])
-  - Reduced padding and element sizes to fit without horizontal scrolling
-
-### 6. Fix knockout bracket showing teams when no results entered
-- Updated `src/lib/wc2026-data.ts`:
-  - Line 273: Added `&& groupStandings[0].played > 0` check for group winner resolution
-  - Line 284: Added `&& groupStandings[1].played > 0` check for runner-up resolution
-
-## Verification
-- ESLint passes with no errors
-- TypeScript compilation succeeds (pre-existing errors in wc2026-logic.ts are unrelated)
-- Dev server compiles and serves successfully
-
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Implement 6 user-requested changes to WC2026 website
+Task: Fix site runtime errors and make the site work
 
 Work Log:
-- Replaced colored squares in header with WC2026 logo SVG (public/wc2026-logo.svg)
-- Added favorite teams feature: Set<string> in Zustand store with localStorage persistence
-- Added favorite matches feature: Set<number> in Zustand store with localStorage persistence
-- Added ⭐ المفضلة tab showing favorite teams data and favorite matches
-- Added star toggle buttons in GroupTable rows and MatchCard/BracketMatch headers
-- Added search filters in matches tab: search input, group dropdown, round dropdown, favorites-only toggle
-- Changed groups grid from 3 columns to 2 columns max (md:grid-cols-2)
-- Made group tables use table-fixed layout with reduced font sizes for no-scroll display
-- Fixed knockout bracket showing teams when no results entered: added played>0 check for group standings, points>0 check for third-place resolution
-- Fixed TypeScript error in calculateThirdPlaceRanking (array type inference)
-- Verified all changes with screenshots and Playwright testing
+- Investigated why the site doesn't work - found dev server keeps crashing in the environment
+- Switched from `output: "standalone"` to `output: "export"` for static site generation
+- Removed placeholder API route that was blocking static export
+- Added `21.0.16.176` to allowedDevOrigins
+- Verified build succeeds with no errors
+- Tested site in browser - all pages render correctly with no JavaScript errors
+- All 5 images (1 logo + 4 trophy) load correctly with proper dimensions
+- Updated package.json scripts to use static server on port 3000
 
 Stage Summary:
-- All 6 user-requested changes implemented and verified
-- WC2026 logo SVG created and displayed in header
-- Favorites system with localStorage persistence working
-- Search/filter bar in matches tab functional
-- Group tables display fully in 2-column grid without scrolling
-- Knockout bracket correctly shows only placeholder text when no results entered
-
----
-
-# Worklog - Task ID: 1 (Round 2 - 5 Improvements)
-
-## Summary
-Implemented 5 specific improvements to the FIFA World Cup 2026 RTL website as requested.
-
-## Changes Made
-
-### Fix 1: Show Match Time
-- **`src/lib/wc2026-data.ts`**: Added `time?: string` field to `Match` interface. Added realistic kick-off times to all 104 matches (varied: 13:00, 15:00, 16:00, 18:00, 19:00, 21:00, 22:00 based on matchday).
-- **`src/lib/wc2026-logic.ts`**: Added `formatTimeAr()` function for Arabic-friendly time formatting.
-- **`src/components/wc2026/MatchCard.tsx`**: Added Clock icon. Display match time as a prominent badge with clock icon next to date in card footer.
-- **`src/components/wc2026/KnockoutBracket.tsx`**: Added Clock icon and time display in BracketMatch header.
-
-### Fix 2: Favorites Tab - Show Matches of Favorite Teams
-- **`src/app/page.tsx`**: 
-  - Added `favoriteTeamMatches` useMemo filtering matches involving favorite teams (resolves knockout team refs).
-  - Added new "مباريات الفرق المفضلة" section with green accent.
-  - Updated "المفضلة فقط" filter to show both manually favorited matches AND matches involving favorite teams.
-
-### Fix 3: Improve Group Table Formatting
-- **`src/components/wc2026/GroupTable.tsx`**: Complete rewrite:
-  - Removed `table-fixed`, uses natural flow with `min-w` per column.
-  - Font sizes 11px → 13px, "المنتخب" column `min-w-[120px]`.
-  - Added `border-r-[3px]` colored left borders for qualification status.
-  - More prominent group header with `text-lg` and subtitle.
-  - Increased padding, added `overflow-x-auto`, color-coded W/L stats.
-
-### Fix 4: Group Names in English Letters
-- **`src/lib/wc2026-data.ts`**: `GROUP_NAMES_AR` changed from Arabic letters (أ، ب، ج...) to English (A, B, C...).
-
-### Fix 5: Improve Overall Professional Design
-- **`src/app/page.tsx`**: Increased spacing (section gaps, grid gaps, padding). Made section headers more prominent (larger accent bars, wider gaps). Better footer with gradient. Added shadow-sm to sections.
-
-## Verification
-- Lint: ✅ Passes
-- Build: ✅ Compiles successfully
-- Dev server: ✅ Running correctly
-
----
-Task ID: 1
-Agent: Main Agent
-Task: Implement 5 specific improvements to WC2026 website
+- Site works correctly with static export approach
+- Dev server crashes in this environment after first request (environment limitation)
+- Static server on port 3000 is the stable solution
+- Build produces correct output in `/home/z/my-project/out/`
 
 ---
 Task ID: 2
-Agent: main
-Task: Add match status filter, redesign knockout bracket, use official logo
+Agent: Main Agent
+Task: Fix trophy image on knockout bracket page
 
 Work Log:
-- Added filterStatus state variable ('all' | 'registered' | 'unregistered') to page.tsx
-- Added match status filter dropdown in the filter bar (مسجلة النتيجة / غير مسجلة)
-- Updated filterMatches callback to handle registered/unregistered filtering
-- Completely redesigned KnockoutBracket component with official FIFA-style dark blue design
-- New BracketMatchCard with dark blue background matching official FIFA bracket aesthetic
-- BracketSlot component for compact team display with ref labels (1A, 2B, etc.)
-- Teams only shown when resolved, otherwise placeholder ref codes in italic
-- Round headers with gradient pill badges
-- Trophy icon centered at top of bracket
-- Connected official WC2026 SVG logos (white version for header, color version available)
-- Updated header logo to use wc2026-logo-white.svg
+- Verified trophy image uses base64 data URI from trophy-image.ts module
+- All 4 trophy image instances (header, desktop final, mobile final, mobile 3rd place) load correctly
+- Confirmed via browser: all images have naturalWidth > 0
 
 Stage Summary:
-- Match status filter (registered/unregistered) added and working
-- Knockout bracket redesigned with official FIFA-style dark blue theme
-- Official WC2026 SVG logos copied to public directory and used in header
-- Build verified successfully
+- Trophy images load correctly on knockout bracket page
+- Using data:image/svg+xml;base64 format which doesn't depend on external file loading
 
 ---
 Task ID: 3
 Agent: Main Agent
-Task: Replace WC2026 logo and redesign knockout bracket
+Task: Add PWA support (service worker + manifest)
 
 Work Log:
-- Analyzed two user-uploaded reference images using VLM: (1) WC logo reference (yellow circle with trophy), (2) professional FIFA bracket layout
-- Created new wc2026-logo.svg with yellow circle, trophy icon, "26" number, and "كأس العالم" text on dark blue background
-- Updated wc2026-logo-white.svg with white trophy version for header use
-- Completely redesigned KnockoutBracket.tsx with proper tournament bracket layout:
-  - Horizontal tree bracket with R32→R16→QF→SF→Final progression
-  - SVG connector lines between rounds showing match pairings
-  - Upper bracket (8 R32 → 4 R16 → 2 QF → SF 101) and Lower bracket (8 R32 → 4 R16 → 2 QF → SF 102)
-  - Final and 3rd Place match prominently displayed at the end
-  - Brighter, more visible connector lines (#4a8ad4 blue with gold junction dots)
-  - Desktop horizontal bracket with min-width 1100px and overflow-x-auto scroll
-  - Mobile fallback with vertical round-by-round layout
-  - Compact match cards with team flags, ref labels, scores, and match info
-- Verified registered/unregistered match filter is already implemented and working
-- Build verified successfully
-- Screenshots taken and analyzed - bracket properly shows connecting lines between rounds
+- Created `/home/z/my-project/public/manifest.json` with Arabic PWA metadata
+- Created `/home/z/my-project/public/sw.js` service worker with cache-first strategy
+- Added manifest link and PWA meta tags to layout.tsx
+- Added service worker registration in page.tsx useEffect hook
+- Verified manifest.json and sw.js serve correctly (HTTP 200)
+- Browser successfully loads manifest.json
 
 Stage Summary:
-- New WC2026 logo with yellow circle/trophy design created and deployed
-- Knockout bracket completely redesigned as a proper tournament bracket tree
-- Desktop shows horizontal bracket with SVG connector lines between rounds
-- Mobile shows vertical round-by-round layout
-- Registered/unregistered match filter confirmed working
-
----
-Task ID: 4
-Agent: Main Agent
-Task: Fix knockout bracket to be symmetrical (both sides of center)
-
-Work Log:
-- Identified that the previous bracket design had all matches flowing in one direction (left-to-right)
-- Completely redesigned bracket layout to be symmetrical with the Final/Trophy at the CENTER
-- LEFT HALF: Lower bracket (R32 → R16 → QF → SF 102) flows RIGHT toward center
-- RIGHT HALF: Upper bracket (R32 → R16 → QF → SF 101) flows LEFT toward center
-- Created MergeConnectorLTR and MergeConnectorRTL for proper directional connectors
-- Center column contains Trophy icon, Final match, and 3rd Place match
-- Round labels are mirrored on both sides of the center
-- Three responsive breakpoints: lg (full symmetrical), md (simplified symmetrical), mobile (vertical)
-- Build verified successfully
-- VLM analysis confirms bracket is now properly symmetrical with matches on both sides
-
-Stage Summary:
-- Knockout bracket is now properly SYMMETRICAL with matches converging from both sides toward center
-- Final/Trophy positioned at center of the bracket
-- Professional FIFA-style two-sided tournament bracket layout
-- Responsive design with three breakpoints
----
-Task ID: 1
-Agent: main
-Task: Fix header logo, knockout bracket layout, and favorites knockout matches
-
-Work Log:
-- Created new horizontal WC 2026 white logo SVG for the header (trophy + FIFA WORLD CUP 26™ text)
-- Created new official WC 2026 logo SVG for center of knockout bracket (circle design with trophy, 26, host nations)
-- Completely rewrote Knockout.svelte with a responsive vertical layout:
-  - Top row: R32 → R16 → QF → SF (converging inward)
-  - Center: Final match + Large WC 2026 logo + Third Place match
-  - Bottom row: SF → QF → R16 → R32 (converging inward)
-  - No horizontal scroll, all data visible
-  - Bigger center logo (140x140px)
-- Fixed Favorites.svelte to show knockout matches for favorite teams:
-  - Added resolveKnockoutTeam() call to resolve references like "1A", "W73" to actual team IDs
-  - Added getDisplayTeam() function to show resolved team names for knockout matches
-- Updated +page.svelte header to use the new horizontal white logo
-- Fixed SVG file ownership issue by recreating via bash
-
-Stage Summary:
-- Header now shows proper WC 2026 horizontal white logo with trophy icon
-- Knockout bracket uses responsive flex layout without horizontal scroll
-- Center logo is bigger (140x140px) between Final and Third Place
-- Favorites page now correctly resolves knockout team references to show matches for favorite teams
-- Build passes successfully
-
----
-Task ID: 2
-Agent: main
-Task: Replace header and knockout logos with generated image, fix mobile bracket
-
-Work Log:
-- Generated WC 2026 logo image using z-ai-generate and saved to /static/wc2026-logo.png
-- Updated +page.svelte header to use /wc2026-logo.png instead of SVG
-- Updated Knockout.svelte center logo to use /wc2026-logo.png
-- Added page header section to Knockout.svelte with logo + "الأدوار الإقصائية" title
-- Fixed mobile bracket by wrapping in scrollable container with min-width: 900px
-- Added overflow-x: auto with -webkit-overflow-scrolling: touch for smooth mobile scrolling
-- Added responsive media queries for mobile (smaller logo sizes)
-- Build passes successfully
-
-Stage Summary:
-- Header logo replaced with generated WC 2026 image
-- Knockout page has logo + title header at top and logo in center bracket
-- Mobile users can scroll horizontally to see the full bracket
-- Desktop users see the full bracket without scroll
----
-Task ID: 1
-Agent: main
-Task: Convert mobile knockout bracket from simple stacked layout to true tree/bracket structure with connector lines
-
-Work Log:
-- Analyzed existing KnockoutBracket.tsx (370 lines) - desktop used CSS grid, mobile used simple stacked grids with no connector lines
-- Designed recursive tree data structure (TreeNode) mapping the bracket hierarchy: R32→R16→QF→SF for both halves
-- Right tree: M74+M77→M89, M73+M75→M90, M89+M90→M97, M83+M84→M93, M81+M82→M94, M93+M94→M98, M97+M98→M101
-- Left tree: M76+M78→M91, M79+M80→M92, M91+M92→M99, M85+M87→M95, M86+M88→M96, M95+M96→M100, M99+M100→M102
-- Created MiniMatch component: compact flag-centric match card with round-colored border and dot indicator
-- Created BracketNode recursive component: renders children + CSS connector lines (horizontal + vertical) + parent match
-- Added round-based coloring: R32=navy, R16=red, QF=gold, SF=green for borders, dots, and connector lines
-- Added round legend at top of mobile bracket
-- Fixed typo: r.homePenalties → result.homePenalties in BMatch
-- Removed static column headers (wouldn't align with recursive tree)
-- Used dir="ltr" on bracket tree for standard left-to-right bracket direction
-- Final & 3rd Place matches shown below both trees using BMatch for full detail
-- Build passes successfully
-
-Stage Summary:
-- Mobile bracket is now a true tree/bracket structure with visual connector lines
-- Each match box shows flag + short name + score for qualified teams
-- Round colors help identify which stage each match belongs to
-- Desktop bracket remains unchanged
-- File: /home/z/my-project/src/components/wc2026/KnockoutBracket.tsx (531 lines)
-
----
-Task ID: 1
-Agent: main
-Task: Fix image football-logos.cc not showing and width:105% issue in knockout bracket
-
-Work Log:
-- Investigated the issue: image `tournaments_fifa-world-cup-2026--unofficial.football-logos.cc` was not appearing
-- Found the SVG file at `/home/z/my-project/upload/tournaments_fifa-world-cup-2026--unofficial.football-logos.cc.svg`
-- Copied it to `/home/z/my-project/public/wc2026-trophy.svg` for the Next.js project
-- Also copied to `/home/z/my-project/world-cup-2026/static/wc2026-trophy.svg` for the SvelteKit project
-- Updated KnockoutBracket.tsx to use `/wc2026-trophy.svg` instead of `/wc2026-logo.png`
-- Verified no `width: 105%` or `width: 104%` exists in any source code
-- Clean rebuilt both Next.js and SvelteKit projects
-- Verified trophy SVG is properly included in both build outputs
-
-Stage Summary:
-- Trophy SVG (football-logos.cc) now properly placed in public/static directories
-- KnockoutBracket.tsx uses correct image path `/wc2026-trophy.svg`
-- No width percentage styles exist in any component code
-- Both projects built successfully with the trophy included
-
----
-Task ID: fix-images-and-layout
-Agent: main
-Task: Fix trophy image loading, use upload folder images, remove width:105%, ensure site works
-
-Work Log:
-- Verified all 3 SVG files from upload/ folder are identical copies in public/
-- Found white logo SVG (1.5MB) contains embedded base64 PNG images causing slow loading
-- Converted all SVGs from upload/ to optimized PNGs using cairosvg:
-  - trophy: 13KB SVG → 26KB PNG
-  - logo-white: 1.5MB SVG → 140KB PNG (10x smaller!)
-  - logo: 1.5MB SVG → 144KB PNG (10x smaller!)
-- Updated all img src references in KnockoutBracket.tsx and page.tsx to use PNG
-- Created favicon from logo PNG
-- Added allowedDevOrigins for 127.0.0.1, localhost, 21.0.11.206 in next.config.ts
-- Fixed trophy SVG by adding width/height attributes (though ultimately using PNG)
-- Verified no width:105% exists anywhere in source code
-- Confirmed build succeeds and all images served with HTTP 200
-
-Stage Summary:
-- All images from upload/ folder are now properly converted and used
-- Trophy uses wc2026-trophy.png (converted from upload/tournaments_fifa-world-cup-2026--unofficial.football-logos.cc.svg)
-- Logo uses wc2026-logo-white.png (converted from upload/tournaments_fifa-world-cup-2026--white.football-logos.cc.svg)
-- No width:105% in source or rendered HTML
-- Build successful, all image URLs return HTTP 200
-
----
-Task ID: fix-trophy-loading-final
-Agent: main
-Task: Fix trophy image not loading in browser - final solution
-
-Work Log:
-- Trophy PNG served correctly by server (HTTP 200, correct Content-Type)
-- But browser showed naturalWidth=0 when loaded as external file from React app
-- Worked fine on plain HTML test page - issue specific to React dev server + browser
-- Solution: Created data URI from the original SVG file from upload/ folder
-- Created /src/lib/trophy-image.ts with base64-encoded data URI constant
-- Updated KnockoutBracket.tsx to use TROPHY_IMG_SRC data URI instead of file path
-- Added explicit width/height attributes and w-auto class for proper sizing
-- Verified all 4 trophy images now load correctly (w=606, h=649)
-- Homepage logo also works correctly (w=400, h=617)
-- No console errors
-
-Stage Summary:
-- Trophy image now uses data URI from upload/tournaments_fifa-world-cup-2026--unofficial.football-logos.cc.svg
-- This bypasses the file loading issue between React dev server and browser
-- All images verified working in browser
-- Build succeeds without errors
+- PWA support added with proper manifest and service worker
+- App can be installed as a standalone app on mobile/desktop
+- Service worker provides basic offline caching
+- All PWA meta tags present: manifest, apple-mobile-web-app-capable, mobile-web-app-capable

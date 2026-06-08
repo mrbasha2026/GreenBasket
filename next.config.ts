@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  /* config options here */
+  output: 'export',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -12,6 +11,7 @@ const nextConfig: NextConfig = {
     '127.0.0.1',
     'localhost',
     '21.0.11.206',
+    '21.0.16.176',
   ],
 };
 

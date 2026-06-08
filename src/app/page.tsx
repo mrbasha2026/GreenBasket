@@ -28,9 +28,15 @@ export default function Home() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'registered' | 'unregistered'>('all');
 
-  // Hydrate from localStorage on mount
+  // Hydrate from localStorage on mount + register service worker for PWA
   useEffect(() => {
     hydrate();
+    // Register service worker for PWA install support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {
+        // SW registration failed - not critical
+      });
+    }
   }, [hydrate]);
 
   const standings = useMemo(() => calculateGroupStandings(results), [results]);

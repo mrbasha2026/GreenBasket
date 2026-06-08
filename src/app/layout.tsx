@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   icons: {
     icon: "/wc2026-favicon.png",
   },
+  manifest: "/manifest.json",
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-title": "كأس العالم 2026",
+  },
 };
 
 export default function RootLayout({

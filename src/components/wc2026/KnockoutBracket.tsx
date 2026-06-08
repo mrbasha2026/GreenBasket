@@ -117,60 +117,6 @@ function BMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }
   );
 }
 
-// Mobile match card - LIGHT THEME
-function MobileBMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }: BMatchProps) {
-  const match = MATCHES.find(m => m.id === matchId);
-  if (!match) return null;
-  const result = results[matchId];
-  const t1Ref = match.team1Ref || match.team1;
-  const t2Ref = match.team2Ref || match.team2;
-  const t1 = resolveTeamRef(t1Ref, standings, thirdPlaceRanking, results);
-  const t2 = resolveTeamRef(t2Ref, standings, thirdPlaceRanking, results);
-  const isDraw = result ? (result.homeGoals === result.awayGoals && (result.homePenalties === undefined || result.awayPenalties === undefined || result.homePenalties === result.awayPenalties)) : false;
-  const t1Win = result ? (result.homeGoals > result.awayGoals || (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.homePenalties > result.awayPenalties)) : false;
-  const t2Win = result ? (result.awayGoals > result.homeGoals || (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.awayPenalties > result.homePenalties)) : false;
-  const t1Lose = result ? (!t1Win && !isDraw) : false;
-  const t2Lose = result ? (!t2Win && !isDraw) : false;
-
-  return (
-    <div
-      className="cursor-pointer rounded-lg overflow-hidden bg-[#e8eef6] border border-[#c5d3e8] active:bg-[#dce5f2] active:shadow-md transition-shadow"
-      onClick={() => onMatchClick(matchId)}
-    >
-      {/* Team 1 */}
-      <div className={`flex items-center gap-2 px-2.5 py-1.5 ${t1Win ? 'bg-[#00A651]/12' : t1Lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
-        {t1 ? <TeamFlag teamName={t1} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#c5d3e8] flex items-center justify-center text-[8px] text-[#6b84a8]">?</span>}
-        <span className={`text-[11px] truncate flex-1 ${!t1 ? 'text-[#6b84a8] italic' : ''} ${t1Win ? 'text-[#00A651] font-bold' : ''} ${t1Lose ? 'text-[#E31837]' : ''} ${!t1Win && !t1Lose && t1 ? 'text-[#1a3a5c]' : ''}`}>
-          {t1 ? (TEAMS[t1]?.nameAr || t1) : getTeamRefDisplayName(t1Ref)}
-        </span>
-        {result !== undefined && (
-          <span className={`text-sm font-bold min-w-[18px] text-center ${t1Win ? 'text-[#00A651]' : t1Lose ? 'text-[#E31837]' : 'text-[#6b84a8]'}`}>
-            {result.homeGoals}
-          </span>
-        )}
-      </div>
-      <div className="h-px bg-[#c5d3e8]/50" />
-      {/* Team 2 */}
-      <div className={`flex items-center gap-2 px-2.5 py-1.5 ${t2Win ? 'bg-[#00A651]/12' : t2Lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
-        {t2 ? <TeamFlag teamName={t2} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#c5d3e8] flex items-center justify-center text-[8px] text-[#6b84a8]">?</span>}
-        <span className={`text-[11px] truncate flex-1 ${!t2 ? 'text-[#6b84a8] italic' : ''} ${t2Win ? 'text-[#00A651] font-bold' : ''} ${t2Lose ? 'text-[#E31837]' : ''} ${!t2Win && !t2Lose && t2 ? 'text-[#1a3a5c]' : ''}`}>
-          {t2 ? (TEAMS[t2]?.nameAr || t2) : getTeamRefDisplayName(t2Ref)}
-        </span>
-        {result !== undefined && (
-          <span className={`text-sm font-bold min-w-[18px] text-center ${t2Win ? 'text-[#00A651]' : t2Lose ? 'text-[#E31837]' : 'text-[#6b84a8]'}`}>
-            {result.awayGoals}
-          </span>
-        )}
-      </div>
-      {/* Penalties */}
-      {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-2.5 py-0.5 bg-amber-100/60 border-t border-amber-200/50">
-          <span className="text-[8px] text-amber-700">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
   const { results } = useWC2026Store();
@@ -288,97 +234,134 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
         </div>
       </div>
 
-      {/* ============ MOBILE / TABLET - VERTICAL LAYOUT ============ */}
-      <div className="lg:hidden bg-gradient-to-b from-gray-50 to-white rounded-2xl p-3 shadow-lg border border-gray-200">
+      {/* ============ MOBILE / TABLET - VERTICAL TREE BRACKET ============ */}
+      <div className="lg:hidden bg-gradient-to-b from-gray-50 to-white rounded-2xl p-2 shadow-lg border border-gray-200 overflow-x-auto">
 
-        {/* Center Logo */}
-        <div className="flex justify-center mb-4">
-          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-28" />
+        {/* Logo */}
+        <div className="flex justify-center mb-3">
+          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-20" />
         </div>
 
-        <div className="space-y-5">
-          {/* === RIGHT SIDE (Top on mobile - was on right in desktop) === */}
-          <div className="space-y-3">
-            <div className="text-center">
-              <span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-3 py-1 rounded-full">القسم الأعلى ← نصف النهائي 101</span>
+        {/* === TOP HALF BRACKET (Right side from desktop → SF 101) === */}
+        <div className="text-center mb-2">
+          <span className="text-[9px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded-full">نصف النهائي 101</span>
+        </div>
+
+        {/* Vertical tree: R32 → R16 → QF → SF */}
+        <div className="min-w-[340px]">
+          {/* R32 - 8 matches in 4 pairs */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#002868]/60 font-bold">دور الـ 32</span></div>
+            <div className="grid grid-cols-4 gap-0.5">
+              {right.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
             </div>
-            {[
-              { round: 'r32' as const, label: 'دور الـ 32', color: '#002868', icon: '⚽', matchIds: right.r32.flat() },
-              { round: 'r16' as const, label: 'دور الـ 16', color: '#E31837', icon: '🔥', matchIds: right.r16.flat() },
-              { round: 'qf' as const, label: 'ربع النهائي', color: '#FFD700', icon: '⭐', matchIds: right.qf },
-              { round: 'sf' as const, label: 'نصف النهائي', color: '#00A651', icon: '🏆', matchIds: [right.sf] },
-            ].map(({ round, label, color, icon, matchIds }) => (
-              <div key={round + '-right'}>
-                <div className="flex items-center justify-center gap-2 mb-1.5">
-                  <span className="text-xs">{icon}</span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}15`, borderColor: `${color}30`, color: color === '#FFD700' ? '#002868' : color }}>
-                    {label}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {matchIds.map(id => (
-                    <MobileBMatch key={id} matchId={id} {...ctx} />
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
 
-          {/* Divider with mini logo */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200" />
-            <img src="/wc2026-logo-unofficial.svg" alt="" className="h-8 opacity-50" />
-            <div className="flex-1 h-px bg-gray-200" />
+          {/* Connector */}
+          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
+
+          {/* R16 - 4 matches */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#E31837]/60 font-bold">دور الـ 16</span></div>
+            <div className="grid grid-cols-2 gap-1 mx-auto" style={{ maxWidth: '50%' }}>
+              {right.r16.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
+            </div>
           </div>
 
-          {/* === LEFT SIDE (Bottom on mobile - was on left in desktop) === */}
-          <div className="space-y-3">
-            <div className="text-center">
-              <span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-3 py-1 rounded-full">القسم الأدنى ← نصف النهائي 102</span>
+          {/* Connector */}
+          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
+
+          {/* QF - 2 matches */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#FFD700]/80 font-bold">ربع النهائي</span></div>
+            <div className="flex justify-center gap-2">
+              {right.qf.map(id => <div key={id} className="w-[45%]"><BMatch matchId={id} {...ctx} /></div>)}
             </div>
-            {[
-              { round: 'r32' as const, label: 'دور الـ 32', color: '#002868', icon: '⚽', matchIds: left.r32.flat() },
-              { round: 'r16' as const, label: 'دور الـ 16', color: '#E31837', icon: '🔥', matchIds: left.r16.flat() },
-              { round: 'qf' as const, label: 'ربع النهائي', color: '#FFD700', icon: '⭐', matchIds: left.qf },
-              { round: 'sf' as const, label: 'نصف النهائي', color: '#00A651', icon: '🏆', matchIds: [left.sf] },
-            ].map(({ round, label, color, icon, matchIds }) => (
-              <div key={round + '-left'}>
-                <div className="flex items-center justify-center gap-2 mb-1.5">
-                  <span className="text-xs">{icon}</span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}15`, borderColor: `${color}30`, color: color === '#FFD700' ? '#002868' : color }}>
-                    {label}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {matchIds.map(id => (
-                    <MobileBMatch key={id} matchId={id} {...ctx} />
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
 
-          {/* Divider */}
-          <div className="flex justify-center"><div className="w-px h-4 bg-gray-200" /></div>
+          {/* Connector */}
+          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
 
-          {/* Final & 3rd Place */}
-          <div className="space-y-2">
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="inline-flex px-2.5 py-1 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold border border-gray-300">🥉 المركز الثالث</span>
-              </div>
-              <div className="max-w-xs mx-auto">
-                {MATCHES.filter(m => m.round === '3rd').map(match => <MobileBMatch key={match.id} matchId={match.id} {...ctx} />)}
-              </div>
+          {/* SF - 1 match */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#00A651]/80 font-bold">نصف النهائي</span></div>
+            <div className="flex justify-center">
+              <div className="w-[45%]"><BMatch matchId={right.sf} {...ctx} /></div>
             </div>
-            <div>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[10px] font-bold"><Trophy className="w-3 h-3" /> النهائي</span>
-              </div>
-              <div className="max-w-xs mx-auto">
-                {MATCHES.filter(m => m.round === 'final').map(match => <MobileBMatch key={match.id} matchId={match.id} {...ctx} />)}
-              </div>
+          </div>
+        </div>
+
+        {/* Divider with logo */}
+        <div className="flex items-center gap-2 my-3">
+          <div className="flex-1 h-px bg-[#c5d3e8]" />
+          <img src="/wc2026-logo-unofficial.svg" alt="" className="h-7 opacity-40" />
+          <div className="flex-1 h-px bg-[#c5d3e8]" />
+        </div>
+
+        {/* === BOTTOM HALF BRACKET (Left side from desktop → SF 102) === */}
+        <div className="text-center mb-2">
+          <span className="text-[9px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded-full">نصف النهائي 102</span>
+        </div>
+
+        <div className="min-w-[340px]">
+          {/* R32 - 8 matches */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#002868]/60 font-bold">دور الـ 32</span></div>
+            <div className="grid grid-cols-4 gap-0.5">
+              {left.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
             </div>
+          </div>
+
+          {/* Connector */}
+          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
+
+          {/* R16 - 4 matches */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#E31837]/60 font-bold">دور الـ 16</span></div>
+            <div className="grid grid-cols-2 gap-1 mx-auto" style={{ maxWidth: '50%' }}>
+              {left.r16.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
+            </div>
+          </div>
+
+          {/* Connector */}
+          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
+
+          {/* QF - 2 matches */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#FFD700]/80 font-bold">ربع النهائي</span></div>
+            <div className="flex justify-center gap-2">
+              {left.qf.map(id => <div key={id} className="w-[45%]"><BMatch matchId={id} {...ctx} /></div>)}
+            </div>
+          </div>
+
+          {/* Connector */}
+          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
+
+          {/* SF - 1 match */}
+          <div className="mb-1">
+            <div className="text-center mb-1"><span className="text-[8px] text-[#00A651]/80 font-bold">نصف النهائي</span></div>
+            <div className="flex justify-center">
+              <div className="w-[45%]"><BMatch matchId={left.sf} {...ctx} /></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="flex justify-center my-3"><div className="w-px h-3 bg-[#c5d3e8]" /></div>
+
+        {/* Final & 3rd Place */}
+        <div className="space-y-3 max-w-[70%] mx-auto">
+          <div>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[9px] font-bold">🥉 المركز الثالث</span>
+            </div>
+            <BMatch matchId={103} {...ctx} />
+          </div>
+          <div>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[9px] font-bold"><Trophy className="w-2.5 h-2.5" /> النهائي</span>
+            </div>
+            <BMatch matchId={104} {...ctx} />
           </div>
         </div>
       </div>

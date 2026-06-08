@@ -6,6 +6,7 @@ import { TEAMS, MATCHES, GROUP_NAMES_AR, ROUND_NAMES_AR, getTeamRefDisplayName }
 import { formatDateAr } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
+import { Star } from 'lucide-react';
 
 interface MatchCardProps {
   matchId: number;
@@ -13,20 +14,21 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
-  const { results } = useWC2026Store();
+  const { results, favoriteMatches, toggleFavoriteMatch } = useWC2026Store();
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
 
   const result = results[matchId];
   const isKnockout = match.round !== 'group';
+  const isFavorite = favoriteMatches.has(matchId);
 
   // For knockout matches, resolve team names
   const team1Name = match.team1Ref ? (TEAMS[match.team1]?.nameAr || getTeamRefDisplayName(match.team1Ref)) : (TEAMS[match.team1]?.nameAr || match.team1);
   const team2Name = match.team2Ref ? (TEAMS[match.team2]?.nameAr || getTeamRefDisplayName(match.team2Ref)) : (TEAMS[match.team2]?.nameAr || match.team2);
-  
+
   const isRef1 = !!match.team1Ref && !TEAMS[match.team1];
   const isRef2 = !!match.team2Ref && !TEAMS[match.team2];
-  
+
   // For resolved knockout teams, use the actual team name for flag lookup
   const team1Key = match.team1Ref ? match.team1 : match.team1;
   const team2Key = match.team2Ref ? match.team2 : match.team2;
@@ -43,16 +45,34 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
         <span className="text-xs text-muted-foreground font-medium">
           مباراة {matchId}
         </span>
-        {match.group && (
-          <Badge variant="secondary" className="text-xs bg-[#002868]/10 text-[#002868] hover:bg-[#002868]/20 border-0">
-            {GROUP_NAMES_AR[match.group]}
-          </Badge>
-        )}
-        {!match.group && (
-          <Badge variant="secondary" className="text-xs bg-[#E31837]/10 text-[#E31837] hover:bg-[#E31837]/20 border-0">
-            {ROUND_NAMES_AR[match.round]}
-          </Badge>
-        )}
+        <div className="flex items-center gap-1">
+          {match.group && (
+            <Badge variant="secondary" className="text-xs bg-[#002868]/10 text-[#002868] hover:bg-[#002868]/20 border-0">
+              {GROUP_NAMES_AR[match.group]}
+            </Badge>
+          )}
+          {!match.group && (
+            <Badge variant="secondary" className="text-xs bg-[#E31837]/10 text-[#E31837] hover:bg-[#E31837]/20 border-0">
+              {ROUND_NAMES_AR[match.round]}
+            </Badge>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavoriteMatch(matchId);
+            }}
+            className="p-0.5 hover:scale-110 transition-transform"
+            title={isFavorite ? 'إزالة من المفضلة' : 'أضف إلى المفضلة'}
+          >
+            <Star
+              className={`w-3.5 h-3.5 ${
+                isFavorite
+                  ? 'fill-[#FFD700] text-[#FFD700]'
+                  : 'text-muted-foreground/50 hover:text-[#FFD700]'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Teams and score */}

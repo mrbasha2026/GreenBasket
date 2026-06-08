@@ -6,6 +6,7 @@ import { TEAMS, MATCHES, ROUND_NAMES_AR, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRef
 import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
+import { Star } from 'lucide-react';
 
 interface KnockoutBracketProps {
   onMatchClick: (matchId: number) => void;
@@ -40,7 +41,7 @@ function resolveTeamRef(
     for (const slot of slots) {
       const slotEligible = THIRD_PLACE_ELIGIBLE_GROUPS[slot] || [];
       for (const tp of thirdPlaceRanking) {
-        if (slotEligible.includes(tp.group) && !usedGroups.has(tp.group)) {
+        if (slotEligible.includes(tp.group) && !usedGroups.has(tp.group) && tp.points > 0) {
           usedGroups.add(tp.group);
           if (slot === ref) return tp.team;
           break;
@@ -95,10 +96,12 @@ interface BracketMatchProps {
 }
 
 function BracketMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }: BracketMatchProps) {
+  const { favoriteMatches, toggleFavoriteMatch } = useWC2026Store();
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
 
   const result = results[matchId];
+  const isFavorite = favoriteMatches.has(matchId);
 
   const team1Ref = match.team1Ref || match.team1;
   const team2Ref = match.team2Ref || match.team2;
@@ -127,7 +130,25 @@ function BracketMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, res
       {/* Header */}
       <div className="bg-gradient-to-l from-[#002868] to-[#1a3f8f] px-3 py-1.5 flex items-center justify-between">
         <span className="text-white text-[10px] font-bold">{ROUND_NAMES_AR[match.round]}</span>
-        <span className="text-white/70 text-[10px]">مباراة {matchId}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-white/70 text-[10px]">مباراة {matchId}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavoriteMatch(matchId);
+            }}
+            className="p-0.5 hover:scale-110 transition-transform"
+            title={isFavorite ? 'إزالة من المفضلة' : 'أضف إلى المفضلة'}
+          >
+            <Star
+              className={`w-3 h-3 ${
+                isFavorite
+                  ? 'fill-[#FFD700] text-[#FFD700]'
+                  : 'text-white/40 hover:text-[#FFD700]'
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       {/* Team 1 */}

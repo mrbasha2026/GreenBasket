@@ -159,7 +159,7 @@ function getHeadToHeadResult(
 export function calculateThirdPlaceRanking(
   standings: Record<string, GroupStanding[]>
 ): { group: string; team: string; points: number; goalDifference: number; goalsFor: number }[] {
-  const thirdPlaceTeams = [];
+  const thirdPlaceTeams: { group: string; team: string; points: number; goalDifference: number; goalsFor: number }[] = [];
 
   for (const group of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']) {
     const groupStandings = standings[group];

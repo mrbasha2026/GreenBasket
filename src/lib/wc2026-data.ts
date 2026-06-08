@@ -270,7 +270,7 @@ export const resolveTeamRef = (
   if (winnerMatch) {
     const group = winnerMatch[1];
     const groupStandings = standings[group];
-    if (groupStandings && groupStandings.length > 0) {
+    if (groupStandings && groupStandings.length > 0 && groupStandings[0].played > 0) {
       return groupStandings[0].team;
     }
     return null;
@@ -281,7 +281,7 @@ export const resolveTeamRef = (
   if (runnerUpMatch) {
     const group = runnerUpMatch[1];
     const groupStandings = standings[group];
-    if (groupStandings && groupStandings.length > 1) {
+    if (groupStandings && groupStandings.length > 1 && groupStandings[1].played > 0) {
       return groupStandings[1].team;
     }
     return null;
@@ -294,9 +294,9 @@ export const resolveTeamRef = (
     const eligibleGroups = THIRD_PLACE_ELIGIBLE_GROUPS[eligibleGroupsKey];
     if (!eligibleGroups) return null;
 
-    // Find the best 3rd place team from eligible groups
+    // Find the best 3rd place team from eligible groups (only if they've played matches)
     const eligibleThirdPlace = thirdPlaceRanking.filter(tp =>
-      eligibleGroups.includes(tp.group)
+      eligibleGroups.includes(tp.group) && tp.points > 0
     );
     if (eligibleThirdPlace.length > 0) {
       return eligibleThirdPlace[0].team;

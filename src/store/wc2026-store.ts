@@ -7,6 +7,8 @@ interface WC2026State {
   activeTab: string;
   editingMatch: number | null;
   hydrated: boolean;
+  favoriteTeams: Set<string>;
+  favoriteMatches: Set<number>;
 
   // Actions
   setMatchResult: (matchId: number, result: MatchResult) => void;
@@ -15,9 +17,13 @@ interface WC2026State {
   setEditingMatch: (matchId: number | null) => void;
   resetAllResults: () => void;
   hydrate: () => void;
+  toggleFavoriteTeam: (teamName: string) => void;
+  toggleFavoriteMatch: (matchId: number) => void;
 }
 
 const STORAGE_KEY = 'wc2026-results';
+const FAVORITES_KEY = 'wc2026-favorites';
+const FAV_MATCHES_KEY = 'wc2026-fav-matches';
 
 function loadResults(): Record<number, MatchResult> {
   if (typeof window === 'undefined') return {};
@@ -41,11 +47,57 @@ function saveResults(results: Record<number, MatchResult>) {
   }
 }
 
+function loadFavoriteTeams(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(FAVORITES_KEY);
+    if (stored) {
+      return new Set(JSON.parse(stored));
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return new Set();
+}
+
+function saveFavoriteTeams(favorites: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function loadFavoriteMatches(): Set<number> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(FAV_MATCHES_KEY);
+    if (stored) {
+      return new Set(JSON.parse(stored));
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return new Set();
+}
+
+function saveFavoriteMatches(favorites: Set<number>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify([...favorites]));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export const useWC2026Store = create<WC2026State>((set) => ({
   results: {},
   activeTab: 'matches',
   editingMatch: null,
   hydrated: false,
+  favoriteTeams: new Set<string>(),
+  favoriteMatches: new Set<number>(),
 
   setMatchResult: (matchId, result) =>
     set((state) => {
@@ -70,6 +122,30 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   },
   hydrate: () => {
     const storedResults = loadResults();
-    set({ results: storedResults, hydrated: true });
+    const storedFavorites = loadFavoriteTeams();
+    const storedFavMatches = loadFavoriteMatches();
+    set({ results: storedResults, favoriteTeams: storedFavorites, favoriteMatches: storedFavMatches, hydrated: true });
   },
+  toggleFavoriteTeam: (teamName) =>
+    set((state) => {
+      const newFavorites = new Set(state.favoriteTeams);
+      if (newFavorites.has(teamName)) {
+        newFavorites.delete(teamName);
+      } else {
+        newFavorites.add(teamName);
+      }
+      saveFavoriteTeams(newFavorites);
+      return { favoriteTeams: newFavorites };
+    }),
+  toggleFavoriteMatch: (matchId) =>
+    set((state) => {
+      const newFavorites = new Set(state.favoriteMatches);
+      if (newFavorites.has(matchId)) {
+        newFavorites.delete(matchId);
+      } else {
+        newFavorites.add(matchId);
+      }
+      saveFavoriteMatches(newFavorites);
+      return { favoriteMatches: newFavorites };
+    }),
 }));

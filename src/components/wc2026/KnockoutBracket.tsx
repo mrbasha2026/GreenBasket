@@ -267,7 +267,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
                   </div>
                   <BMatch matchId={104} {...ctx} />
                 </div>
-                <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-36 my-2 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]" />
+                <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-36 my-2 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]" />
                 <div>
                   <div className="text-center mb-1">
                     <span className="inline-flex px-2 py-0.5 rounded-full bg-[#6B6300]/80 text-white/60 text-[8px] font-bold">
@@ -309,34 +309,75 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
 
         {/* Center Logo */}
         <div className="flex justify-center mb-4">
-          <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-24 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
+          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-28 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
         </div>
 
-        <div className="space-y-3">
-          {[
-            { round: 'r32' as const, label: 'دور الـ 32', date: '28 يونيو - 3 يوليو', color: '#1a4a8e', icon: '⚽' },
-            { round: 'r16' as const, label: 'دور الـ 16', date: '4 - 7 يوليو', color: '#E31837', icon: '🔥' },
-            { round: 'qf' as const, label: 'ربع النهائي', date: '9 - 11 يوليو', color: '#FFD700', icon: '⭐' },
-            { round: 'sf' as const, label: 'نصف النهائي', date: '14 - 15 يوليو', color: '#00A651', icon: '🏆' },
-          ].map(({ round, label, date, color, icon }) => (
-            <div key={round}>
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-sm">{icon}</span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border" style={{ backgroundColor: `${color}25`, borderColor: `${color}40`, color: round === 'qf' ? '#002868' : 'white' }}>
-                  {label}
-                </span>
-                <span className="text-[9px] opacity-40 text-white">{date}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {MATCHES.filter(m => m.round === round).map(match => (
-                  <MobileBMatch key={match.id} matchId={match.id} {...ctx} />
-                ))}
-              </div>
+        <div className="space-y-4">
+          {/* === RIGHT SIDE (Top on mobile) === */}
+          <div className="space-y-3">
+            <div className="text-center">
+              <span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-3 py-1 rounded-full">القسم الأعلى → نصف النهائي 101</span>
             </div>
-          ))}
+            {[
+              { round: 'r32' as const, label: 'دور الـ 32', color: '#1a4a8e', icon: '⚽', matchIds: right.r32.flat() },
+              { round: 'r16' as const, label: 'دور الـ 16', color: '#E31837', icon: '🔥', matchIds: right.r16.flat() },
+              { round: 'qf' as const, label: 'ربع النهائي', color: '#FFD700', icon: '⭐', matchIds: right.qf },
+              { round: 'sf' as const, label: 'نصف النهائي', color: '#00A651', icon: '🏆', matchIds: [right.sf] },
+            ].map(({ round, label, color, icon, matchIds }) => (
+              <div key={round + '-right'}>
+                <div className="flex items-center justify-center gap-2 mb-1.5">
+                  <span className="text-xs">{icon}</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}25`, borderColor: `${color}40`, color: round === 'qf' ? '#002868' : 'white' }}>
+                    {label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {matchIds.map(id => (
+                    <MobileBMatch key={id} matchId={id} {...ctx} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
 
+          {/* Divider */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-[#1a4a8e]/30" />
+            <img src="/wc2026-logo-unofficial.svg" alt="" className="h-10 opacity-60" />
+            <div className="flex-1 h-px bg-[#1a4a8e]/30" />
+          </div>
+
+          {/* === LEFT SIDE (Bottom on mobile) === */}
+          <div className="space-y-3">
+            <div className="text-center">
+              <span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-3 py-1 rounded-full">القسم الأدنى → نصف النهائي 102</span>
+            </div>
+            {[
+              { round: 'r32' as const, label: 'دور الـ 32', color: '#1a4a8e', icon: '⚽', matchIds: left.r32.flat() },
+              { round: 'r16' as const, label: 'دور الـ 16', color: '#E31837', icon: '🔥', matchIds: left.r16.flat() },
+              { round: 'qf' as const, label: 'ربع النهائي', color: '#FFD700', icon: '⭐', matchIds: left.qf },
+              { round: 'sf' as const, label: 'نصف النهائي', color: '#00A651', icon: '🏆', matchIds: [left.sf] },
+            ].map(({ round, label, color, icon, matchIds }) => (
+              <div key={round + '-left'}>
+                <div className="flex items-center justify-center gap-2 mb-1.5">
+                  <span className="text-xs">{icon}</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}25`, borderColor: `${color}40`, color: round === 'qf' ? '#002868' : 'white' }}>
+                    {label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {matchIds.map(id => (
+                    <MobileBMatch key={id} matchId={id} {...ctx} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Divider */}
           <div className="flex justify-center"><div className="w-px h-3 bg-[#4a8ad4]/20" /></div>
 
+          {/* Final & 3rd Place */}
           <div className="space-y-2">
             <div>
               <div className="flex items-center justify-center gap-2 mb-2">

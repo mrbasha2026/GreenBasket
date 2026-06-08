@@ -315,7 +315,7 @@ export default function Home() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 text-center">
           {/* Logo */}
           <div className="flex items-center justify-center mb-4">
-            <img src="/wc2026-logo-white.svg" alt="كأس العالم 2026" className="h-20 md:h-28" />
+            <img src="/wc2026-logo-white.png" alt="كأس العالم 2026" className="h-20 md:h-28" />
           </div>
 
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-2 tracking-tight">

@@ -1,5 +1,5 @@
 <script>
-  import { allMatches, getTeam, stageNames } from '$lib/data.js';
+  import { allMatches, getTeam, stageNames, groups } from '$lib/data.js';
   import { scores, favoriteTeams, favoriteMatches } from '$lib/stores.js';
   import { resolveKnockoutTeam, getMatchResult } from '$lib/logic.js';
   import TeamBadge from './TeamBadge.svelte';
@@ -9,17 +9,59 @@
   let favTeams = $derived($favoriteTeams);
   let favMatchIds = $derived($favoriteMatches);
 
-  // Check if a knockout match involves a favorite team by resolving the references
+  // Check if a knockout reference chain involves a favorite team
+  function refInvolvesFav(ref, depth = 0) {
+    if (!ref || typeof ref !== 'string' || depth > 10) return false;
+
+    // Direct team id
+    if (favTeams.includes(ref)) return true;
+
+    // Group position: "1A", "2B", "3A" - check if any fav team is in that group
+    const groupPosMatch = ref.match(/^([123])([A-L])$/);
+    if (groupPosMatch) {
+      const groupId = groupPosMatch[2];
+      const group = groups.find(g => g.id === groupId);
+      if (group) {
+        return group.teams.some(t => favTeams.includes(t));
+      }
+    }
+
+    // Winner/Loser of match: "W73", "L101"
+    const wlMatch = ref.match(/^[WL](\d+)$/);
+    if (wlMatch) {
+      const matchId = parseInt(wlMatch[1]);
+      const match = allMatches.find(m => m.id === matchId);
+      if (match) {
+        return refInvolvesFav(match.home, depth + 1) || refInvolvesFav(match.away, depth + 1);
+      }
+    }
+
+    // Best 3rd place references: "3ABD", "3CEF", "3GHI", "3JKL", "3GHI2", "3JKL2"
+    const thirdPlaceMatch = ref.match(/^3([A-L]+)(\d?)$/);
+    if (thirdPlaceMatch) {
+      const groupIds = thirdPlaceMatch[1].split('');
+      return groupIds.some(gId => {
+        const group = groups.find(g => g.id === gId);
+        return group && group.teams.some(t => favTeams.includes(t));
+      });
+    }
+
+    return false;
+  }
+
+  // Check if a match involves a favorite team
   function matchInvolvesFavTeam(match) {
     if (match.type === 'group') {
       return favTeams.includes(match.home) || favTeams.includes(match.away);
     }
-    // For knockout matches, resolve the team references
+    // For knockout matches, try to resolve the teams first
     const homeTeam = resolveKnockoutTeam(match.home, currentScores);
     const awayTeam = resolveKnockoutTeam(match.away, currentScores);
     if (homeTeam && favTeams.includes(homeTeam.id)) return true;
     if (awayTeam && favTeams.includes(awayTeam.id)) return true;
-    return false;
+
+    // If teams aren't resolved yet, check if the reference chain involves a fav team
+    return refInvolvesFav(match.home) || refInvolvesFav(match.away);
   }
 
   let favMatchesList = $derived(allMatches.filter(m => {
@@ -28,6 +70,7 @@
     return false;
   }));
 
+  // Also include all scored knockout matches
   let scoredKnockout = $derived(allMatches.filter(m => {
     if (m.type === 'group') return false;
     const s = currentScores[m.id];

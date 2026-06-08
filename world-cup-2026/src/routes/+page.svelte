@@ -26,7 +26,7 @@
   <header class="header">
     <div class="header-content">
       <div class="logo-section">
-        <img src="/wc2026-logo.png" alt="كأس العالم 2026" class="header-logo" />
+        <img src="/wc2026-logo-white.svg" alt="كأس العالم 2026" class="header-logo" />
       </div>
       <button class="reset-btn" onclick={resetAll}>مسح الكل</button>
     </div>

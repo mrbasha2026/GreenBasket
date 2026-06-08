@@ -33,20 +33,14 @@
 </script>
 
 <div class="knockout-page">
-  <!-- Page Header with Logo -->
-  <div class="page-header">
-    <img src="/wc2026-logo.png" alt="كأس العالم 2026" class="page-logo" />
-    <h2 class="page-title">الأدوار الإقصائية</h2>
-  </div>
-
-  <!-- Bracket - scrollable on mobile, horizontal on desktop -->
-  <div class="bracket-scroll">
-    <div class="bracket-page">
+  <!-- Bracket layout -->
+  <div class="bracket-container">
+    <div class="bracket-grid">
       <!-- Top Half: R32 → R16 → QF → SF -->
-      <div class="bracket-row">
+      <div class="bracket-row top-row">
         <div class="round-col">
           <div class="round-label">دور الـ 32</div>
-          <div class="matches-grid r32-grid">
+          <div class="matches-col">
             {#each r32Top as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -54,13 +48,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -71,7 +63,7 @@
         </div>
         <div class="round-col">
           <div class="round-label">دور الـ 16</div>
-          <div class="matches-grid r16-grid">
+          <div class="matches-col spaced-8">
             {#each r16Top as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -79,13 +71,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -96,7 +86,7 @@
         </div>
         <div class="round-col">
           <div class="round-label">ربع النهائي</div>
-          <div class="matches-grid qf-grid">
+          <div class="matches-col spaced-16">
             {#each qfTop as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -104,13 +94,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -121,7 +109,7 @@
         </div>
         <div class="round-col">
           <div class="round-label">نصف النهائي</div>
-          <div class="matches-grid sf-grid">
+          <div class="matches-col spaced-32">
             {#each sfTop as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -129,13 +117,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card featured">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -155,7 +141,7 @@
           {@const homeResult = getMatchResult(score, true)}
           {@const awayResult = getMatchResult(score, false)}
           <div class="final-card">
-            <div class="final-label">🏆 المباراة النهائية</div>
+            <div class="final-label">المباراة النهائية</div>
             <div class="final-teams">
               <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
                 {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{finalMatch.home}</span>{/if}
@@ -171,7 +157,7 @@
         {/if}
 
         <div class="center-logo">
-          <img src="/wc2026-logo.png" alt="FIFA World Cup 2026" />
+          <img src="/wc2026-logo-white.svg" alt="FIFA World Cup 2026" />
         </div>
 
         {#if thirdMatch}
@@ -181,7 +167,7 @@
           {@const homeResult = getMatchResult(score, true)}
           {@const awayResult = getMatchResult(score, false)}
           <div class="third-card">
-            <div class="third-label">🥉 المركز الثالث</div>
+            <div class="third-label">المركز الثالث</div>
             <div class="final-teams">
               <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
                 {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{thirdMatch.home}</span>{/if}
@@ -198,10 +184,10 @@
       </div>
 
       <!-- Bottom Half: SF → QF → R16 → R32 -->
-      <div class="bracket-row">
+      <div class="bracket-row bottom-row">
         <div class="round-col">
           <div class="round-label">نصف النهائي</div>
-          <div class="matches-grid sf-grid">
+          <div class="matches-col spaced-32">
             {#each sfBottom as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -209,13 +195,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card featured">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -226,7 +210,7 @@
         </div>
         <div class="round-col">
           <div class="round-label">ربع النهائي</div>
-          <div class="matches-grid qf-grid">
+          <div class="matches-col spaced-16">
             {#each qfBottom as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -234,13 +218,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -251,7 +233,7 @@
         </div>
         <div class="round-col">
           <div class="round-label">دور الـ 16</div>
-          <div class="matches-grid r16-grid">
+          <div class="matches-col spaced-8">
             {#each r16Bottom as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -259,13 +241,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -276,7 +256,7 @@
         </div>
         <div class="round-col">
           <div class="round-label">دور الـ 32</div>
-          <div class="matches-grid r32-grid">
+          <div class="matches-col">
             {#each r32Bottom as match}
               {@const score = currentScores[match.id]}
               {@const homeTeam = resolveTeam(match.home)}
@@ -284,13 +264,11 @@
               {@const homeResult = getMatchResult(score, true)}
               {@const awayResult = getMatchResult(score, false)}
               <div class="match-card">
-                <div class="teams">
-                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-                  </div>
-                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-                  </div>
+                <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                  {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                </div>
+                <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                  {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
                 </div>
                 <div class="score-mini">
                   <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
@@ -305,54 +283,28 @@
 </div>
 
 <style>
-  /* Page header with logo */
   .knockout-page {
-    display: flex;
-    flex-direction: column;
     width: 100%;
+    overflow: hidden;
   }
 
-  .page-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    padding: 12px 8px 8px;
-  }
-
-  .page-logo {
-    width: 100px;
-    height: 100px;
-    object-fit: contain;
-    border-radius: 8px;
-  }
-
-  .page-title {
-    color: #FFD700;
-    font-size: 1.1rem;
-    margin: 0;
-    text-align: center;
-  }
-
-  /* Scrollable bracket container - works on mobile */
-  .bracket-scroll {
+  .bracket-container {
     width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
   }
 
-  .bracket-page {
+  .bracket-grid {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 6px;
-    min-width: 900px;
+    gap: 6px;
+    min-width: 800px;
+    padding: 4px;
   }
 
   .bracket-row {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     width: 100%;
   }
 
@@ -360,39 +312,38 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
     min-width: 0;
   }
 
   .round-label {
     text-align: center;
     color: #FFD700;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: bold;
-    padding: 3px 0;
+    padding: 2px 0;
     background: rgba(255, 215, 0, 0.08);
     border-radius: 3px;
     white-space: nowrap;
+    margin-bottom: 2px;
   }
 
-  .matches-grid {
+  .matches-col {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    justify-content: space-around;
     flex: 1;
+    justify-content: space-around;
   }
 
-  .r32-grid { justify-content: space-between; }
-  .r16-grid { justify-content: space-around; }
-  .qf-grid { justify-content: space-around; }
-  .sf-grid { justify-content: center; }
+  .spaced-8 { justify-content: space-around; }
+  .spaced-16 { justify-content: space-around; }
+  .spaced-32 { justify-content: center; }
 
   .match-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 5px;
-    padding: 3px 4px;
+    border-radius: 4px;
+    padding: 2px 3px;
     transition: all 0.2s;
   }
 
@@ -405,43 +356,37 @@
     background: rgba(255, 215, 0, 0.03);
   }
 
-  .teams {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
   .team-row {
     display: flex;
     align-items: center;
-    padding: 2px 3px;
-    border-radius: 3px;
-    min-height: 22px;
-    gap: 3px;
+    padding: 1px 3px;
+    border-radius: 2px;
+    min-height: 20px;
+    gap: 2px;
   }
 
   .team-row :global(.name) {
-    font-size: 0.65rem !important;
+    font-size: 0.6rem !important;
   }
 
   .team-row :global(.flag) {
-    width: 18px !important;
-    height: 12px !important;
+    width: 16px !important;
+    height: 11px !important;
   }
 
   .team-row.result-win {
     background: rgba(76, 175, 80, 0.15);
-    border-left: 2px solid #4CAF50;
+    border-right: 2px solid #4CAF50;
   }
 
   .team-row.result-loss {
     background: rgba(244, 67, 54, 0.12);
-    border-left: 2px solid #F44336;
+    border-right: 2px solid #F44336;
   }
 
   .team-row.result-draw {
     background: rgba(255, 193, 7, 0.12);
-    border-left: 2px solid #FFC107;
+    border-right: 2px solid #FFC107;
   }
 
   .score-mini {
@@ -450,18 +395,18 @@
   }
 
   .score-mini :global(.score-btn) {
-    padding: 1px 6px;
-    min-width: 38px;
-    font-size: 0.65rem;
+    padding: 1px 5px;
+    min-width: 34px;
+    font-size: 0.6rem;
   }
 
   .score-mini :global(.score-display) {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
 
   .tbd {
     color: rgba(255, 255, 255, 0.25);
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     font-style: italic;
   }
 
@@ -470,25 +415,25 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    padding: 8px 0;
-    flex-wrap: wrap;
+    gap: 12px;
+    padding: 6px 0;
+    flex-wrap: nowrap;
   }
 
   .final-card {
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 165, 0, 0.06));
     border: 2px solid rgba(255, 215, 0, 0.4);
-    border-radius: 10px;
-    padding: 8px 12px;
-    min-width: 150px;
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-width: 130px;
   }
 
   .final-label {
     text-align: center;
     color: #FFD700;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: bold;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .final-teams {
@@ -501,21 +446,21 @@
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
-    padding: 8px 12px;
-    min-width: 150px;
+    padding: 6px 10px;
+    min-width: 130px;
   }
 
   .third-label {
     text-align: center;
     color: #cd7f32;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: bold;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
 
   .center-logo {
-    width: 140px;
-    height: 140px;
+    width: 180px;
+    height: 180px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -526,27 +471,16 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    border-radius: 8px;
   }
 
-  /* Mobile: scroll indicator */
   @media (max-width: 768px) {
-    .bracket-scroll {
-      position: relative;
-    }
-
-    .page-logo {
-      width: 80px;
-      height: 80px;
-    }
-
-    .page-title {
-      font-size: 0.95rem;
+    .bracket-grid {
+      min-width: 700px;
     }
 
     .center-logo {
-      width: 100px;
-      height: 100px;
+      width: 120px;
+      height: 120px;
     }
   }
 </style>

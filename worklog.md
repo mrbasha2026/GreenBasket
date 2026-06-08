@@ -328,3 +328,26 @@ Stage Summary:
 - Logo uses wc2026-logo-white.png (converted from upload/tournaments_fifa-world-cup-2026--white.football-logos.cc.svg)
 - No width:105% in source or rendered HTML
 - Build successful, all image URLs return HTTP 200
+
+---
+Task ID: fix-trophy-loading-final
+Agent: main
+Task: Fix trophy image not loading in browser - final solution
+
+Work Log:
+- Trophy PNG served correctly by server (HTTP 200, correct Content-Type)
+- But browser showed naturalWidth=0 when loaded as external file from React app
+- Worked fine on plain HTML test page - issue specific to React dev server + browser
+- Solution: Created data URI from the original SVG file from upload/ folder
+- Created /src/lib/trophy-image.ts with base64-encoded data URI constant
+- Updated KnockoutBracket.tsx to use TROPHY_IMG_SRC data URI instead of file path
+- Added explicit width/height attributes and w-auto class for proper sizing
+- Verified all 4 trophy images now load correctly (w=606, h=649)
+- Homepage logo also works correctly (w=400, h=617)
+- No console errors
+
+Stage Summary:
+- Trophy image now uses data URI from upload/tournaments_fifa-world-cup-2026--unofficial.football-logos.cc.svg
+- This bypasses the file loading issue between React dev server and browser
+- All images verified working in browser
+- Build succeeds without errors

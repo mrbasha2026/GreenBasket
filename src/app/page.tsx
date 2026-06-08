@@ -315,7 +315,8 @@ export default function Home() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 text-center">
           {/* Logo */}
           <div className="flex items-center justify-center mb-4">
-            <img src="/wc2026-logo-white.png" alt="كأس العالم 2026" className="h-20 md:h-28" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/wc2026-logo-white.png" alt="كأس العالم 2026" width={260} height={401} className="h-20 md:h-28 w-auto" />
           </div>
 
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-2 tracking-tight">

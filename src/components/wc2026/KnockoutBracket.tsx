@@ -6,6 +6,7 @@ import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
 import { Trophy, Medal } from 'lucide-react';
+import { TROPHY_IMG_SRC } from '@/lib/trophy-image';
 
 interface KnockoutBracketProps {
   onMatchClick: (matchId: number) => void;
@@ -221,7 +222,8 @@ function DesktopBracket({ ctx }: { ctx: BracketCtx }) {
       <div className="bg-gradient-to-b from-slate-50 to-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-l from-[#002868] via-[#1a3a7a] to-[#002868] px-6 py-4 flex items-center justify-center gap-4">
-          <img src="/wc2026-trophy.png" alt="كأس العالم 2026" className="h-14 drop-shadow-lg" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={TROPHY_IMG_SRC} alt="كأس العالم 2026" width={84} height={90} className="h-14 w-auto drop-shadow-lg" />
           <div className="text-center">
             <h2 className="text-xl font-bold text-white">الأدوار الإقصائية</h2>
             <p className="text-[11px] text-blue-200 tracking-wider">KNOCKOUT STAGE</p>
@@ -275,7 +277,8 @@ function DesktopBracket({ ctx }: { ctx: BracketCtx }) {
                   </div>
                   <BMatch matchId={104} ctx={ctx} roundColor="border-r-[3px] border-r-amber-400" />
                 </div>
-                <img src="/wc2026-trophy.png" alt="كأس العالم 2026" className="h-28 drop-shadow-xl" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={TROPHY_IMG_SRC} alt="كأس العالم 2026" width={168} height={179} className="h-28 w-auto drop-shadow-xl" />
                 <div className="w-full max-w-[170px]">
                   <div className="text-center mb-2">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold">
@@ -324,7 +327,8 @@ function MobileBracket({ ctx }: { ctx: BracketCtx }) {
       <div className="bg-gradient-to-b from-slate-50 to-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-l from-[#002868] via-[#1a3a7a] to-[#002868] px-4 py-4 text-center">
-          <img src="/wc2026-trophy.png" alt="كأس العالم 2026" className="h-14 mx-auto mb-2 drop-shadow-lg" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={TROPHY_IMG_SRC} alt="كأس العالم 2026" width={84} height={90} className="h-14 w-auto mx-auto mb-2 drop-shadow-lg" />
           <h2 className="text-lg font-bold text-white">الأدوار الإقصائية</h2>
           <p className="text-[10px] text-blue-200 tracking-wider">KNOCKOUT STAGE</p>
         </div>
@@ -383,7 +387,8 @@ function MobileBracket({ ctx }: { ctx: BracketCtx }) {
 
             {/* Logo */}
             <div className="flex justify-center py-2">
-              <img src="/wc2026-trophy.png" alt="كأس العالم 2026" className="h-20 drop-shadow-lg" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={TROPHY_IMG_SRC} alt="كأس العالم 2026" width={120} height={128} className="h-20 w-auto drop-shadow-lg" />
             </div>
 
             {/* Final */}

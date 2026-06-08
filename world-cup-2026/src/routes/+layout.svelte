@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <link rel="icon" href="/wc2026-logo-official.svg" />
+  <link rel="icon" href="wc2026-logo-official.svg" />
 </svelte:head>
 
 {@render children()}

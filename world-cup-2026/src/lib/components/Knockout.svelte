@@ -157,7 +157,7 @@
         {/if}
 
         <div class="center-logo">
-          <img src="/wc2026-logo-white.svg" alt="FIFA World Cup 2026" />
+          <img src="wc2026-logo-white.svg" alt="FIFA World Cup 2026" />
         </div>
 
         {#if thirdMatch}

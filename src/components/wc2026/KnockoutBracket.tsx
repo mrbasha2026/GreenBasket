@@ -90,12 +90,12 @@ function BMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }
     let bg = win ? 'bg-[#00A651]/15' : lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : '';
     return (
       <div className={`flex items-center gap-1.5 px-2 py-1 min-h-[26px] ${bg}`}>
-        {resolved ? <TeamFlag teamName={resolved} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-gray-200 flex items-center justify-center text-[7px] text-gray-400">?</span>}
-        <span className={`text-[11px] truncate flex-1 ${!resolved ? 'text-gray-400 italic text-[10px]' : ''} ${win ? 'text-[#00A651] font-bold' : ''} ${lose ? 'text-[#E31837]' : ''} ${isDraw ? 'text-[#D4A017] font-semibold' : ''} ${!win && !lose && !isDraw && resolved ? 'text-gray-700' : ''}`}>
+        {resolved ? <TeamFlag teamName={resolved} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#c5d3e8] flex items-center justify-center text-[7px] text-[#6b84a8]">?</span>}
+        <span className={`text-[11px] truncate flex-1 ${!resolved ? 'text-[#6b84a8] italic text-[10px]' : ''} ${win ? 'text-[#00A651] font-bold' : ''} ${lose ? 'text-[#E31837]' : ''} ${isDraw ? 'text-[#D4A017] font-semibold' : ''} ${!win && !lose && !isDraw && resolved ? 'text-[#1a3a5c]' : ''}`}>
           {name || getTeamRefDisplayName(ref)}
         </span>
         {result !== undefined && (
-          <span className={`text-[12px] font-bold min-w-[16px] text-center ${win ? 'text-[#00A651]' : lose ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-gray-400'}`}>
+          <span className={`text-[12px] font-bold min-w-[16px] text-center ${win ? 'text-[#00A651]' : lose ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-[#6b84a8]'}`}>
             {goals}
           </span>
         )}
@@ -104,13 +104,13 @@ function BMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }
   };
 
   return (
-    <div className="cursor-pointer hover:ring-1 hover:ring-[#002868]/30 transition-all rounded-md overflow-hidden bg-white border border-gray-200 hover:shadow-sm" onClick={() => onMatchClick(matchId)}>
+    <div className="cursor-pointer hover:ring-1 hover:ring-[#002868]/30 transition-all rounded-md overflow-hidden bg-[#e8eef6] border border-[#c5d3e8] hover:shadow-sm hover:bg-[#dce5f2]" onClick={() => onMatchClick(matchId)}>
       {row(t1, t1Ref, t1Win, t1Lose, result?.homeGoals)}
-      <div className="h-px bg-gray-100" />
+      <div className="h-px bg-[#c5d3e8]/50" />
       {row(t2, t2Ref, t2Win, t2Lose, result?.awayGoals)}
       {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-2 py-0.5 bg-amber-50 border-t border-amber-100">
-          <span className="text-[7px] text-amber-600">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
+        <div className="px-2 py-0.5 bg-amber-100/60 border-t border-amber-200/50">
+          <span className="text-[7px] text-amber-700">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
         </div>
       )}
     </div>
@@ -134,38 +134,38 @@ function MobileBMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, res
 
   return (
     <div
-      className="cursor-pointer rounded-lg overflow-hidden bg-white border border-gray-200 active:shadow-md transition-shadow"
+      className="cursor-pointer rounded-lg overflow-hidden bg-[#e8eef6] border border-[#c5d3e8] active:bg-[#dce5f2] active:shadow-md transition-shadow"
       onClick={() => onMatchClick(matchId)}
     >
       {/* Team 1 */}
       <div className={`flex items-center gap-2 px-2.5 py-1.5 ${t1Win ? 'bg-[#00A651]/12' : t1Lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
-        {t1 ? <TeamFlag teamName={t1} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-gray-200 flex items-center justify-center text-[8px] text-gray-400">?</span>}
-        <span className={`text-[11px] truncate flex-1 ${!t1 ? 'text-gray-400 italic' : ''} ${t1Win ? 'text-[#00A651] font-bold' : ''} ${t1Lose ? 'text-[#E31837]' : ''} ${!t1Win && !t1Lose && t1 ? 'text-gray-700' : ''}`}>
+        {t1 ? <TeamFlag teamName={t1} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#c5d3e8] flex items-center justify-center text-[8px] text-[#6b84a8]">?</span>}
+        <span className={`text-[11px] truncate flex-1 ${!t1 ? 'text-[#6b84a8] italic' : ''} ${t1Win ? 'text-[#00A651] font-bold' : ''} ${t1Lose ? 'text-[#E31837]' : ''} ${!t1Win && !t1Lose && t1 ? 'text-[#1a3a5c]' : ''}`}>
           {t1 ? (TEAMS[t1]?.nameAr || t1) : getTeamRefDisplayName(t1Ref)}
         </span>
         {result !== undefined && (
-          <span className={`text-sm font-bold min-w-[18px] text-center ${t1Win ? 'text-[#00A651]' : t1Lose ? 'text-[#E31837]' : 'text-gray-400'}`}>
+          <span className={`text-sm font-bold min-w-[18px] text-center ${t1Win ? 'text-[#00A651]' : t1Lose ? 'text-[#E31837]' : 'text-[#6b84a8]'}`}>
             {result.homeGoals}
           </span>
         )}
       </div>
-      <div className="h-px bg-gray-100" />
+      <div className="h-px bg-[#c5d3e8]/50" />
       {/* Team 2 */}
       <div className={`flex items-center gap-2 px-2.5 py-1.5 ${t2Win ? 'bg-[#00A651]/12' : t2Lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
-        {t2 ? <TeamFlag teamName={t2} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-gray-200 flex items-center justify-center text-[8px] text-gray-400">?</span>}
-        <span className={`text-[11px] truncate flex-1 ${!t2 ? 'text-gray-400 italic' : ''} ${t2Win ? 'text-[#00A651] font-bold' : ''} ${t2Lose ? 'text-[#E31837]' : ''} ${!t2Win && !t2Lose && t2 ? 'text-gray-700' : ''}`}>
+        {t2 ? <TeamFlag teamName={t2} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#c5d3e8] flex items-center justify-center text-[8px] text-[#6b84a8]">?</span>}
+        <span className={`text-[11px] truncate flex-1 ${!t2 ? 'text-[#6b84a8] italic' : ''} ${t2Win ? 'text-[#00A651] font-bold' : ''} ${t2Lose ? 'text-[#E31837]' : ''} ${!t2Win && !t2Lose && t2 ? 'text-[#1a3a5c]' : ''}`}>
           {t2 ? (TEAMS[t2]?.nameAr || t2) : getTeamRefDisplayName(t2Ref)}
         </span>
         {result !== undefined && (
-          <span className={`text-sm font-bold min-w-[18px] text-center ${t2Win ? 'text-[#00A651]' : t2Lose ? 'text-[#E31837]' : 'text-gray-400'}`}>
+          <span className={`text-sm font-bold min-w-[18px] text-center ${t2Win ? 'text-[#00A651]' : t2Lose ? 'text-[#E31837]' : 'text-[#6b84a8]'}`}>
             {result.awayGoals}
           </span>
         )}
       </div>
       {/* Penalties */}
       {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-2.5 py-0.5 bg-amber-50 border-t border-amber-100">
-          <span className="text-[8px] text-amber-600">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
+        <div className="px-2.5 py-0.5 bg-amber-100/60 border-t border-amber-200/50">
+          <span className="text-[8px] text-amber-700">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
         </div>
       )}
     </div>

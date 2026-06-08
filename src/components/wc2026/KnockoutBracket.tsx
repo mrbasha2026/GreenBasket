@@ -163,13 +163,6 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
 
       {/* ============ DESKTOP BRACKET ============ */}
       <div className="hidden lg:block bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-4 shadow-xl border border-[#1a4a8e]/30">
-        {/* Header */}
-        <div className="flex justify-center mb-4">
-          <div className="flex flex-col items-center">
-            <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-16 mb-2" />
-            <h2 className="text-white text-base font-bold">الأدوار الإقصائية</h2>
-          </div>
-        </div>
 
         {/* The Bracket - CSS Grid approach */}
         <div className="overflow-x-auto">
@@ -221,7 +214,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
                   </div>
                   <BMatch matchId={104} {...ctx} />
                 </div>
-                <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-20 my-1" />
+                <img src="/wc2026-logo-white.svg" alt="كأس العالم 2026" className="h-32 my-2 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
                 <div>
                   <div className="text-center mb-1">
                     <span className="inline-flex px-2 py-0.5 rounded-full bg-[#6B6300]/80 text-white/60 text-[8px] font-bold">
@@ -260,12 +253,6 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
 
       {/* ============ MOBILE / TABLET ============ */}
       <div className="lg:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-3 shadow-xl border border-[#1a4a8e]/30">
-        <div className="flex justify-center mb-3">
-          <div className="flex flex-col items-center">
-            <img src="/wc2026-logo-official.svg" alt="كأس العالم 2026" className="h-12 mb-2" />
-            <h2 className="text-white text-sm font-bold">الأدوار الإقصائية</h2>
-          </div>
-        </div>
 
         <div className="space-y-4">
           {[

@@ -26,7 +26,7 @@
   <header class="header">
     <div class="header-content">
       <div class="logo-section">
-        <img src="/wc2026-logo-white.svg" alt="كأس العالم 2026" class="header-logo" />
+        <img src="/wc2026-logo.png" alt="كأس العالم 2026" class="header-logo" />
       </div>
       <button class="reset-btn" onclick={resetAll}>مسح الكل</button>
     </div>
@@ -91,9 +91,10 @@
   }
 
   .header-logo {
-    height: 44px;
+    height: 50px;
     width: auto;
     object-fit: contain;
+    border-radius: 6px;
   }
 
   .reset-btn {
@@ -116,7 +117,7 @@
     background: rgba(0, 0, 0, 0.3);
     border-bottom: 1px solid rgba(255, 215, 0, 0.1);
     position: sticky;
-    top: 62px;
+    top: 68px;
     z-index: 99;
   }
 

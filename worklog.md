@@ -234,3 +234,24 @@ Stage Summary:
 - Center logo is bigger (140x140px) between Final and Third Place
 - Favorites page now correctly resolves knockout team references to show matches for favorite teams
 - Build passes successfully
+
+---
+Task ID: 2
+Agent: main
+Task: Replace header and knockout logos with generated image, fix mobile bracket
+
+Work Log:
+- Generated WC 2026 logo image using z-ai-generate and saved to /static/wc2026-logo.png
+- Updated +page.svelte header to use /wc2026-logo.png instead of SVG
+- Updated Knockout.svelte center logo to use /wc2026-logo.png
+- Added page header section to Knockout.svelte with logo + "الأدوار الإقصائية" title
+- Fixed mobile bracket by wrapping in scrollable container with min-width: 900px
+- Added overflow-x: auto with -webkit-overflow-scrolling: touch for smooth mobile scrolling
+- Added responsive media queries for mobile (smaller logo sizes)
+- Build passes successfully
+
+Stage Summary:
+- Header logo replaced with generated WC 2026 image
+- Knockout page has logo + title header at top and logo in center bracket
+- Mobile users can scroll horizontally to see the full bracket
+- Desktop users see the full bracket without scroll

@@ -32,274 +32,322 @@
   let sfBottom = $derived(sfMatches.slice(1, 2));
 </script>
 
-<div class="bracket-page">
-  <!-- Top Half: R32 → R16 → QF → SF -->
-  <div class="bracket-row">
-    <div class="round-col">
-      <div class="round-label">دور الـ 32</div>
-      <div class="matches-grid r32-grid">
-        {#each r32Top as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-              </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-    <div class="round-col">
-      <div class="round-label">دور الـ 16</div>
-      <div class="matches-grid r16-grid">
-        {#each r16Top as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-              </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-    <div class="round-col">
-      <div class="round-label">ربع النهائي</div>
-      <div class="matches-grid qf-grid">
-        {#each qfTop as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-              </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-    <div class="round-col">
-      <div class="round-label">نصف النهائي</div>
-      <div class="matches-grid sf-grid">
-        {#each sfTop as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card featured">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-              </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
+<div class="knockout-page">
+  <!-- Page Header with Logo -->
+  <div class="page-header">
+    <img src="/wc2026-logo.png" alt="كأس العالم 2026" class="page-logo" />
+    <h2 class="page-title">الأدوار الإقصائية</h2>
   </div>
 
-  <!-- Center: Final + Logo + Third Place -->
-  <div class="center-section">
-    {#if finalMatch}
-      {@const score = currentScores[finalMatch.id]}
-      {@const homeTeam = resolveTeam(finalMatch.home)}
-      {@const awayTeam = resolveTeam(finalMatch.away)}
-      {@const homeResult = getMatchResult(score, true)}
-      {@const awayResult = getMatchResult(score, false)}
-      <div class="final-card">
-        <div class="final-label">🏆 المباراة النهائية</div>
-        <div class="final-teams">
-          <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-            {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{finalMatch.home}</span>{/if}
+  <!-- Bracket - scrollable on mobile, horizontal on desktop -->
+  <div class="bracket-scroll">
+    <div class="bracket-page">
+      <!-- Top Half: R32 → R16 → QF → SF -->
+      <div class="bracket-row">
+        <div class="round-col">
+          <div class="round-label">دور الـ 32</div>
+          <div class="matches-grid r32-grid">
+            {#each r32Top as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
+              </div>
+            {/each}
           </div>
-          <div class="score-mini">
-            <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(finalMatch.id, h, a, hp, ap)} />
+        </div>
+        <div class="round-col">
+          <div class="round-label">دور الـ 16</div>
+          <div class="matches-grid r16-grid">
+            {#each r16Top as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
+              </div>
+            {/each}
           </div>
-          <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-            {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{finalMatch.away}</span>{/if}
+        </div>
+        <div class="round-col">
+          <div class="round-label">ربع النهائي</div>
+          <div class="matches-grid qf-grid">
+            {#each qfTop as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+        <div class="round-col">
+          <div class="round-label">نصف النهائي</div>
+          <div class="matches-grid sf-grid">
+            {#each sfTop as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card featured">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
+              </div>
+            {/each}
           </div>
         </div>
       </div>
-    {/if}
 
-    <div class="center-logo">
-      <img src="/wc2026-logo-official.svg" alt="FIFA World Cup 2026" />
-    </div>
+      <!-- Center: Final + Logo + Third Place -->
+      <div class="center-section">
+        {#if finalMatch}
+          {@const score = currentScores[finalMatch.id]}
+          {@const homeTeam = resolveTeam(finalMatch.home)}
+          {@const awayTeam = resolveTeam(finalMatch.away)}
+          {@const homeResult = getMatchResult(score, true)}
+          {@const awayResult = getMatchResult(score, false)}
+          <div class="final-card">
+            <div class="final-label">🏆 المباراة النهائية</div>
+            <div class="final-teams">
+              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{finalMatch.home}</span>{/if}
+              </div>
+              <div class="score-mini">
+                <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(finalMatch.id, h, a, hp, ap)} />
+              </div>
+              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{finalMatch.away}</span>{/if}
+              </div>
+            </div>
+          </div>
+        {/if}
 
-    {#if thirdMatch}
-      {@const score = currentScores[thirdMatch.id]}
-      {@const homeTeam = resolveTeam(thirdMatch.home)}
-      {@const awayTeam = resolveTeam(thirdMatch.away)}
-      {@const homeResult = getMatchResult(score, true)}
-      {@const awayResult = getMatchResult(score, false)}
-      <div class="third-card">
-        <div class="third-label">🥉 المركز الثالث</div>
-        <div class="final-teams">
-          <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-            {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{thirdMatch.home}</span>{/if}
+        <div class="center-logo">
+          <img src="/wc2026-logo.png" alt="FIFA World Cup 2026" />
+        </div>
+
+        {#if thirdMatch}
+          {@const score = currentScores[thirdMatch.id]}
+          {@const homeTeam = resolveTeam(thirdMatch.home)}
+          {@const awayTeam = resolveTeam(thirdMatch.away)}
+          {@const homeResult = getMatchResult(score, true)}
+          {@const awayResult = getMatchResult(score, false)}
+          <div class="third-card">
+            <div class="third-label">🥉 المركز الثالث</div>
+            <div class="final-teams">
+              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{thirdMatch.home}</span>{/if}
+              </div>
+              <div class="score-mini">
+                <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(thirdMatch.id, h, a, hp, ap)} />
+              </div>
+              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{thirdMatch.away}</span>{/if}
+              </div>
+            </div>
           </div>
-          <div class="score-mini">
-            <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(thirdMatch.id, h, a, hp, ap)} />
-          </div>
-          <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-            {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{thirdMatch.away}</span>{/if}
+        {/if}
+      </div>
+
+      <!-- Bottom Half: SF → QF → R16 → R32 -->
+      <div class="bracket-row">
+        <div class="round-col">
+          <div class="round-label">نصف النهائي</div>
+          <div class="matches-grid sf-grid">
+            {#each sfBottom as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card featured">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
+              </div>
+            {/each}
           </div>
         </div>
-      </div>
-    {/if}
-  </div>
-
-  <!-- Bottom Half: SF → QF → R16 → R32 -->
-  <div class="bracket-row">
-    <div class="round-col">
-      <div class="round-label">نصف النهائي</div>
-      <div class="matches-grid sf-grid">
-        {#each sfBottom as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card featured">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+        <div class="round-col">
+          <div class="round-label">ربع النهائي</div>
+          <div class="matches-grid qf-grid">
+            {#each qfBottom as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
               </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
+            {/each}
           </div>
-        {/each}
-      </div>
-    </div>
-    <div class="round-col">
-      <div class="round-label">ربع النهائي</div>
-      <div class="matches-grid qf-grid">
-        {#each qfBottom as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+        </div>
+        <div class="round-col">
+          <div class="round-label">دور الـ 16</div>
+          <div class="matches-grid r16-grid">
+            {#each r16Bottom as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
               </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
+            {/each}
           </div>
-        {/each}
-      </div>
-    </div>
-    <div class="round-col">
-      <div class="round-label">دور الـ 16</div>
-      <div class="matches-grid r16-grid">
-        {#each r16Bottom as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+        </div>
+        <div class="round-col">
+          <div class="round-label">دور الـ 32</div>
+          <div class="matches-grid r32-grid">
+            {#each r32Bottom as match}
+              {@const score = currentScores[match.id]}
+              {@const homeTeam = resolveTeam(match.home)}
+              {@const awayTeam = resolveTeam(match.away)}
+              {@const homeResult = getMatchResult(score, true)}
+              {@const awayResult = getMatchResult(score, false)}
+              <div class="match-card">
+                <div class="teams">
+                  <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
+                    {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
+                  </div>
+                  <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
+                    {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
+                  </div>
+                </div>
+                <div class="score-mini">
+                  <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
+                </div>
               </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
+            {/each}
           </div>
-        {/each}
-      </div>
-    </div>
-    <div class="round-col">
-      <div class="round-label">دور الـ 32</div>
-      <div class="matches-grid r32-grid">
-        {#each r32Bottom as match}
-          {@const score = currentScores[match.id]}
-          {@const homeTeam = resolveTeam(match.home)}
-          {@const awayTeam = resolveTeam(match.away)}
-          {@const homeResult = getMatchResult(score, true)}
-          {@const awayResult = getMatchResult(score, false)}
-          <div class="match-card">
-            <div class="teams">
-              <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-                {#if homeTeam}<TeamBadge teamId={homeTeam.id} small={true} />{:else}<span class="tbd">{match.home}</span>{/if}
-              </div>
-              <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-                {#if awayTeam}<TeamBadge teamId={awayTeam.id} small={true} />{:else}<span class="tbd">{match.away}</span>{/if}
-              </div>
-            </div>
-            <div class="score-mini">
-              <ScoreDialog homeScore={score?.home} awayScore={score?.away} homePenalty={score?.homePenalty} awayPenalty={score?.awayPenalty} onScore={(h, a, hp, ap) => handleScore(match.id, h, a, hp, ap)} />
-            </div>
-          </div>
-        {/each}
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <style>
+  /* Page header with logo */
+  .knockout-page {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .page-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px 8px;
+  }
+
+  .page-logo {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+
+  .page-title {
+    color: #FFD700;
+    font-size: 1.1rem;
+    margin: 0;
+    text-align: center;
+  }
+
+  /* Scrollable bracket container - works on mobile */
+  .bracket-scroll {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
   .bracket-page {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 6px;
-    width: 100%;
+    min-width: 900px;
   }
 
   .bracket-row {
@@ -478,5 +526,27 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
+    border-radius: 8px;
+  }
+
+  /* Mobile: scroll indicator */
+  @media (max-width: 768px) {
+    .bracket-scroll {
+      position: relative;
+    }
+
+    .page-logo {
+      width: 80px;
+      height: 80px;
+    }
+
+    .page-title {
+      font-size: 0.95rem;
+    }
+
+    .center-logo {
+      width: 100px;
+      height: 100px;
+    }
   }
 </style>

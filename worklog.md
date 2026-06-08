@@ -302,3 +302,29 @@ Stage Summary:
 - KnockoutBracket.tsx uses correct image path `/wc2026-trophy.svg`
 - No width percentage styles exist in any component code
 - Both projects built successfully with the trophy included
+
+---
+Task ID: fix-images-and-layout
+Agent: main
+Task: Fix trophy image loading, use upload folder images, remove width:105%, ensure site works
+
+Work Log:
+- Verified all 3 SVG files from upload/ folder are identical copies in public/
+- Found white logo SVG (1.5MB) contains embedded base64 PNG images causing slow loading
+- Converted all SVGs from upload/ to optimized PNGs using cairosvg:
+  - trophy: 13KB SVG → 26KB PNG
+  - logo-white: 1.5MB SVG → 140KB PNG (10x smaller!)
+  - logo: 1.5MB SVG → 144KB PNG (10x smaller!)
+- Updated all img src references in KnockoutBracket.tsx and page.tsx to use PNG
+- Created favicon from logo PNG
+- Added allowedDevOrigins for 127.0.0.1, localhost, 21.0.11.206 in next.config.ts
+- Fixed trophy SVG by adding width/height attributes (though ultimately using PNG)
+- Verified no width:105% exists anywhere in source code
+- Confirmed build succeeds and all images served with HTTP 200
+
+Stage Summary:
+- All images from upload/ folder are now properly converted and used
+- Trophy uses wc2026-trophy.png (converted from upload/tournaments_fifa-world-cup-2026--unofficial.football-logos.cc.svg)
+- Logo uses wc2026-logo-white.png (converted from upload/tournaments_fifa-world-cup-2026--white.football-logos.cc.svg)
+- No width:105% in source or rendered HTML
+- Build successful, all image URLs return HTTP 200

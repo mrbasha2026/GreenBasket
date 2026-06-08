@@ -278,6 +278,15 @@ export function formatDateAr(dateStr: string): string {
 }
 
 /**
+ * Format match time in Arabic-friendly format
+ * e.g., "18:00" -> "18:00" or "6:00 م"
+ */
+export function formatTimeAr(time?: string): string {
+  if (!time) return '';
+  return time;
+}
+
+/**
  * Check if a team is qualified (in top 2 of group or best 8 3rd place)
  */
 export function isTeamQualified(

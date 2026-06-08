@@ -3,10 +3,10 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TEAMS, MATCHES, GROUP_NAMES_AR, ROUND_NAMES_AR, getTeamRefDisplayName } from '@/lib/wc2026-data';
-import { formatDateAr } from '@/lib/wc2026-logic';
+import { formatDateAr, formatTimeAr } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
-import { Star } from 'lucide-react';
+import { Star, Clock } from 'lucide-react';
 
 interface MatchCardProps {
   matchId: number;
@@ -134,10 +134,18 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
         </div>
       </div>
 
-      {/* Footer - date and venue */}
+      {/* Footer - time, date and venue */}
       <div className="px-3 py-1.5 bg-muted/30 border-t border-border/20">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{formatDateAr(match.date)}</span>
+          <div className="flex items-center gap-2">
+            {match.time && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#002868]/10 text-[#002868] font-bold text-[11px]">
+                <Clock className="w-2.5 h-2.5" />
+                {formatTimeAr(match.time)}
+              </span>
+            )}
+            <span>{formatDateAr(match.date)}</span>
+          </div>
           <span className="truncate mr-2">{match.venueAr}</span>
         </div>
       </div>

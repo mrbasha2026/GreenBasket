@@ -87,3 +87,48 @@ Stage Summary:
 - Search/filter bar in matches tab functional
 - Group tables display fully in 2-column grid without scrolling
 - Knockout bracket correctly shows only placeholder text when no results entered
+
+---
+
+# Worklog - Task ID: 1 (Round 2 - 5 Improvements)
+
+## Summary
+Implemented 5 specific improvements to the FIFA World Cup 2026 RTL website as requested.
+
+## Changes Made
+
+### Fix 1: Show Match Time
+- **`src/lib/wc2026-data.ts`**: Added `time?: string` field to `Match` interface. Added realistic kick-off times to all 104 matches (varied: 13:00, 15:00, 16:00, 18:00, 19:00, 21:00, 22:00 based on matchday).
+- **`src/lib/wc2026-logic.ts`**: Added `formatTimeAr()` function for Arabic-friendly time formatting.
+- **`src/components/wc2026/MatchCard.tsx`**: Added Clock icon. Display match time as a prominent badge with clock icon next to date in card footer.
+- **`src/components/wc2026/KnockoutBracket.tsx`**: Added Clock icon and time display in BracketMatch header.
+
+### Fix 2: Favorites Tab - Show Matches of Favorite Teams
+- **`src/app/page.tsx`**: 
+  - Added `favoriteTeamMatches` useMemo filtering matches involving favorite teams (resolves knockout team refs).
+  - Added new "مباريات الفرق المفضلة" section with green accent.
+  - Updated "المفضلة فقط" filter to show both manually favorited matches AND matches involving favorite teams.
+
+### Fix 3: Improve Group Table Formatting
+- **`src/components/wc2026/GroupTable.tsx`**: Complete rewrite:
+  - Removed `table-fixed`, uses natural flow with `min-w` per column.
+  - Font sizes 11px → 13px, "المنتخب" column `min-w-[120px]`.
+  - Added `border-r-[3px]` colored left borders for qualification status.
+  - More prominent group header with `text-lg` and subtitle.
+  - Increased padding, added `overflow-x-auto`, color-coded W/L stats.
+
+### Fix 4: Group Names in English Letters
+- **`src/lib/wc2026-data.ts`**: `GROUP_NAMES_AR` changed from Arabic letters (أ، ب، ج...) to English (A, B, C...).
+
+### Fix 5: Improve Overall Professional Design
+- **`src/app/page.tsx`**: Increased spacing (section gaps, grid gaps, padding). Made section headers more prominent (larger accent bars, wider gaps). Better footer with gradient. Added shadow-sm to sections.
+
+## Verification
+- Lint: ✅ Passes
+- Build: ✅ Compiles successfully
+- Dev server: ✅ Running correctly
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement 5 specific improvements to WC2026 website

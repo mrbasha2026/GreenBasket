@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { MATCHES, TEAMS, GROUP_NAMES, GROUP_NAMES_AR, ROUND_NAMES_AR } from '@/lib/wc2026-data';
-import { calculateGroupStandings, formatDateAr } from '@/lib/wc2026-logic';
+import { calculateGroupStandings, formatDateAr, formatTimeAr } from '@/lib/wc2026-logic';
 import { MatchCard } from '@/components/wc2026/MatchCard';
 import { GroupTable } from '@/components/wc2026/GroupTable';
 import { KnockoutBracket } from '@/components/wc2026/KnockoutBracket';
@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart } from 'lucide-react';
+import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock } from 'lucide-react';
 
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
@@ -68,11 +68,13 @@ export default function Home() {
       }
       // Filter by favorites
       if (showFavoritesOnly) {
-        if (!favoriteMatches.has(match.id)) return false;
+        const isFavMatch = favoriteMatches.has(match.id);
+        const involvesFavTeam = favoriteTeams.has(match.team1) || favoriteTeams.has(match.team2);
+        if (!isFavMatch && !involvesFavTeam) return false;
       }
       return true;
     });
-  }, [searchQuery, filterGroup, filterRound, showFavoritesOnly, favoriteMatches]);
+  }, [searchQuery, filterGroup, filterRound, showFavoritesOnly, favoriteMatches, favoriteTeams]);
 
   // Group matches by date
   const matchesByDate = useMemo(() => {
@@ -265,6 +267,25 @@ export default function Home() {
     return MATCHES.filter(m => favoriteMatches.has(m.id));
   }, [favoriteMatches]);
 
+  // Matches involving favorite teams (group + knockout with resolved refs)
+  const favoriteTeamMatches = useMemo(() => {
+    if (favoriteTeams.size === 0) return [];
+    return MATCHES.filter(match => {
+      // For group stage, direct team name check
+      if (match.round === 'group') {
+        return favoriteTeams.has(match.team1) || favoriteTeams.has(match.team2);
+      }
+      // For knockout, try to resolve team refs
+      const team1Resolved = match.team1Ref
+        ? (resolveTeamRef(match.team1Ref) || match.team1)
+        : match.team1;
+      const team2Resolved = match.team2Ref
+        ? (resolveTeamRef(match.team2Ref) || match.team2)
+        : match.team2;
+      return favoriteTeams.has(team1Resolved) || favoriteTeams.has(team2Resolved);
+    });
+  }, [favoriteTeams, resolveTeamRef]);
+
   const hasAnyFavorites = favoriteTeams.size > 0 || favoriteMatches.size > 0;
 
   return (
@@ -395,12 +416,12 @@ export default function Home() {
       </div>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         {/* MATCHES TAB */}
         {activeTab === 'matches' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Filter Bar */}
-            <Card className="p-3 border-border/50 bg-card/80 backdrop-blur-sm !py-3">
+            <Card className="p-4 border-border/50 bg-card/80 backdrop-blur-sm !py-3">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -451,25 +472,25 @@ export default function Home() {
 
             {/* Group Stage Section */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-6 bg-[#002868] rounded-full" />
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-1.5 h-7 bg-[#002868] rounded-full" />
                 <h2 className="text-xl font-bold text-[#002868]">دور المجموعات</h2>
                 <Badge variant="secondary" className="bg-[#002868]/10 text-[#002868]">
                   72 مباراة
                 </Badge>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Object.entries(matchesByDate)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([date, matches]) => {
                     const isExpanded = expandedDays.has(date);
                     return (
-                      <div key={date} className="rounded-xl overflow-hidden border border-border/30">
+                      <div key={date} className="rounded-xl overflow-hidden border border-border/30 shadow-sm">
                         {/* Date header */}
                         <button
                           onClick={() => toggleDay(date)}
-                          className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-l from-muted/80 to-muted/40 hover:from-muted hover:to-muted/60 transition-colors"
+                          className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-l from-muted/80 to-muted/40 hover:from-muted hover:to-muted/60 transition-all"
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-bold text-[#002868]">
@@ -488,7 +509,7 @@ export default function Home() {
 
                         {/* Matches grid */}
                         {isExpanded && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                             {matches.map(match => (
                               <MatchCard
                                 key={match.id}
@@ -511,20 +532,20 @@ export default function Home() {
 
             {/* Knockout Stage Preview */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1 h-6 bg-[#E31837] rounded-full" />
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-1.5 h-7 bg-[#E31837] rounded-full" />
                 <h2 className="text-xl font-bold text-[#E31837]">الأدوار الإقصائية</h2>
                 <Badge variant="secondary" className="bg-[#E31837]/10 text-[#E31837]">
                   32 مباراة
                 </Badge>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Object.entries(knockoutByRound).map(([round, matches]) => {
                   const roundKey = round as string;
                   return (
-                    <div key={roundKey} className="rounded-xl overflow-hidden border border-border/30">
-                      <div className="px-4 py-2.5 bg-gradient-to-l from-[#E31837]/10 to-[#E31837]/5">
+                    <div key={roundKey} className="rounded-xl overflow-hidden border border-border/30 shadow-sm">
+                      <div className="px-4 py-3 bg-gradient-to-l from-[#E31837]/10 to-[#E31837]/5">
                         <span className="text-sm font-bold text-[#E31837]">
                           {ROUND_NAMES_AR[roundKey]}
                         </span>
@@ -532,7 +553,7 @@ export default function Home() {
                           {matches.length} مباراة
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
                         {matches.map(match => (
                           <MatchCard
                             key={match.id}
@@ -557,12 +578,12 @@ export default function Home() {
         {/* GROUPS TAB */}
         {activeTab === 'groups' && (
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-1 h-6 bg-[#00A651] rounded-full" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-7 bg-[#00A651] rounded-full" />
               <h2 className="text-xl font-bold text-[#002868]">ترتيب المجموعات</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {GROUP_NAMES.map(group => (
                 <GroupTable
                   key={group}
@@ -590,8 +611,8 @@ export default function Home() {
         {/* KNOCKOUT TAB */}
         {activeTab === 'knockout' && (
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-1 h-6 bg-[#E31837] rounded-full" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-7 bg-[#E31837] rounded-full" />
               <h2 className="text-xl font-bold text-[#002868]">الأدوار الإقصائية</h2>
               <Trophy className="w-5 h-5 text-[#FFD700]" />
             </div>
@@ -603,8 +624,8 @@ export default function Home() {
         {/* FAVORITES TAB */}
         {activeTab === 'favorites' && (
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-1 h-6 bg-[#FFD700] rounded-full" />
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-7 bg-[#FFD700] rounded-full" />
               <h2 className="text-xl font-bold text-[#002868]">المفضلة</h2>
               <Star className="w-5 h-5 text-[#FFD700] fill-[#FFD700]" />
             </div>
@@ -694,6 +715,28 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Matches of Favorite Teams Section */}
+                {favoriteTeamMatches.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1 h-6 bg-[#00A651] rounded-full" />
+                      <h3 className="text-lg font-bold text-[#002868]">مباريات الفرق المفضلة</h3>
+                      <Badge variant="secondary" className="bg-[#00A651]/10 text-[#00A651]">
+                        {favoriteTeamMatches.length} مباراة
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {favoriteTeamMatches.map(match => (
+                        <MatchCard
+                          key={match.id}
+                          matchId={match.id}
+                          onMatchClick={handleMatchClick}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Favorite Matches Section */}
                 {favoriteMatchesData.length > 0 && (
                   <div>
@@ -722,8 +765,8 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#002868] mt-8">
-        <div className="max-w-7xl mx-auto px-4 py-4 text-center">
+      <footer className="bg-gradient-to-l from-[#002868] to-[#001a4a] mt-12">
+        <div className="max-w-7xl mx-auto px-4 py-6 text-center">
           <p className="text-white/60 text-xs">
             كأس العالم 2026™ — FIFA World Cup 2026™ — جميع الحقوق محفوظة
           </p>

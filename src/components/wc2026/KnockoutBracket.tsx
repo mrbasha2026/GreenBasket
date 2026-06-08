@@ -3,10 +3,10 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { TEAMS, MATCHES, ROUND_NAMES_AR, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } from '@/lib/wc2026-data';
-import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
+import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking, formatTimeAr } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
-import { Star } from 'lucide-react';
+import { Star, Clock } from 'lucide-react';
 
 interface KnockoutBracketProps {
   onMatchClick: (matchId: number) => void;
@@ -130,7 +130,13 @@ function BracketMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, res
       {/* Header */}
       <div className="bg-gradient-to-l from-[#002868] to-[#1a3f8f] px-3 py-1.5 flex items-center justify-between">
         <span className="text-white text-[10px] font-bold">{ROUND_NAMES_AR[match.round]}</span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
+          {match.time && (
+            <span className="inline-flex items-center gap-0.5 text-white/80 text-[10px] font-medium bg-white/15 rounded px-1 py-0.5">
+              <Clock className="w-2 h-2" />
+              {formatTimeAr(match.time)}
+            </span>
+          )}
           <span className="text-white/70 text-[10px]">مباراة {matchId}</span>
           <button
             onClick={(e) => {

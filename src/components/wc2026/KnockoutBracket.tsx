@@ -62,7 +62,7 @@ function resolveTeamRef(
   return null;
 }
 
-// Compact bracket match card
+// Compact bracket match card - LIGHT THEME for desktop
 interface BMatchProps {
   matchId: number;
   onMatchClick: (id: number) => void;
@@ -87,15 +87,15 @@ function BMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }
 
   const row = (resolved: string | null, ref: string, win: boolean, lose: boolean, goals: number | undefined) => {
     const name = resolved ? (TEAMS[resolved]?.nameAr || resolved) : null;
-    let bg = win ? 'bg-[#00A651]/15' : lose ? 'bg-[#E31837]/10' : isDraw ? 'bg-[#D4A017]/10' : '';
+    let bg = win ? 'bg-[#00A651]/15' : lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : '';
     return (
       <div className={`flex items-center gap-1.5 px-2 py-1 min-h-[26px] ${bg}`}>
-        {resolved ? <TeamFlag teamName={resolved} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#1a4a8e]/50 flex items-center justify-center text-[7px] text-white/30">?</span>}
-        <span className={`text-[11px] truncate flex-1 ${!resolved ? 'text-white/25 italic text-[10px]' : ''} ${win ? 'text-[#00A651] font-bold' : ''} ${lose ? 'text-[#E31837]' : ''} ${isDraw ? 'text-[#D4A017] font-semibold' : ''} ${!win && !lose && !isDraw && resolved ? 'text-white/85' : ''}`}>
+        {resolved ? <TeamFlag teamName={resolved} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-gray-200 flex items-center justify-center text-[7px] text-gray-400">?</span>}
+        <span className={`text-[11px] truncate flex-1 ${!resolved ? 'text-gray-400 italic text-[10px]' : ''} ${win ? 'text-[#00A651] font-bold' : ''} ${lose ? 'text-[#E31837]' : ''} ${isDraw ? 'text-[#D4A017] font-semibold' : ''} ${!win && !lose && !isDraw && resolved ? 'text-gray-700' : ''}`}>
           {name || getTeamRefDisplayName(ref)}
         </span>
         {result !== undefined && (
-          <span className={`text-[12px] font-bold min-w-[16px] text-center ${win ? 'text-[#00A651]' : lose ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-white/40'}`}>
+          <span className={`text-[12px] font-bold min-w-[16px] text-center ${win ? 'text-[#00A651]' : lose ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-gray-400'}`}>
             {goals}
           </span>
         )}
@@ -104,20 +104,20 @@ function BMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }
   };
 
   return (
-    <div className="cursor-pointer hover:ring-1 hover:ring-[#FFD700]/40 transition-all rounded-md overflow-hidden bg-[#0a2a55] border border-[#1a4a8e]/50 hover:bg-[#0d3060]" onClick={() => onMatchClick(matchId)}>
+    <div className="cursor-pointer hover:ring-1 hover:ring-[#002868]/30 transition-all rounded-md overflow-hidden bg-white border border-gray-200 hover:shadow-sm" onClick={() => onMatchClick(matchId)}>
       {row(t1, t1Ref, t1Win, t1Lose, result?.homeGoals)}
-      <div className="h-px bg-[#1a4a8e]/30" />
+      <div className="h-px bg-gray-100" />
       {row(t2, t2Ref, t2Win, t2Lose, result?.awayGoals)}
       {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-2 py-0.5 bg-[#002868]/30 border-t border-[#1a4a8e]/20">
-          <span className="text-[7px] text-amber-400">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
+        <div className="px-2 py-0.5 bg-amber-50 border-t border-amber-100">
+          <span className="text-[7px] text-amber-600">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
         </div>
       )}
     </div>
   );
 }
 
-// Mobile match card - more compact
+// Mobile match card - LIGHT THEME
 function MobileBMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }: BMatchProps) {
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
@@ -134,38 +134,38 @@ function MobileBMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, res
 
   return (
     <div
-      className="cursor-pointer rounded-lg overflow-hidden bg-[#0a2a55] border border-[#1a4a8e]/50 active:bg-[#0d3060] transition-colors"
+      className="cursor-pointer rounded-lg overflow-hidden bg-white border border-gray-200 active:shadow-md transition-shadow"
       onClick={() => onMatchClick(matchId)}
     >
       {/* Team 1 */}
-      <div className={`flex items-center gap-2 px-3 py-1.5 ${t1Win ? 'bg-[#00A651]/15' : t1Lose ? 'bg-[#E31837]/10' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
-        {t1 ? <TeamFlag teamName={t1} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#1a4a8e]/50 flex items-center justify-center text-[8px] text-white/30">?</span>}
-        <span className={`text-xs truncate flex-1 ${!t1 ? 'text-white/25 italic' : ''} ${t1Win ? 'text-[#00A651] font-bold' : ''} ${t1Lose ? 'text-[#E31837]' : ''} ${!t1Win && !t1Lose && t1 ? 'text-white/85' : ''}`}>
+      <div className={`flex items-center gap-2 px-2.5 py-1.5 ${t1Win ? 'bg-[#00A651]/12' : t1Lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
+        {t1 ? <TeamFlag teamName={t1} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-gray-200 flex items-center justify-center text-[8px] text-gray-400">?</span>}
+        <span className={`text-[11px] truncate flex-1 ${!t1 ? 'text-gray-400 italic' : ''} ${t1Win ? 'text-[#00A651] font-bold' : ''} ${t1Lose ? 'text-[#E31837]' : ''} ${!t1Win && !t1Lose && t1 ? 'text-gray-700' : ''}`}>
           {t1 ? (TEAMS[t1]?.nameAr || t1) : getTeamRefDisplayName(t1Ref)}
         </span>
         {result !== undefined && (
-          <span className={`text-sm font-bold min-w-[20px] text-center ${t1Win ? 'text-[#00A651]' : t1Lose ? 'text-[#E31837]' : 'text-white/40'}`}>
+          <span className={`text-sm font-bold min-w-[18px] text-center ${t1Win ? 'text-[#00A651]' : t1Lose ? 'text-[#E31837]' : 'text-gray-400'}`}>
             {result.homeGoals}
           </span>
         )}
       </div>
-      <div className="h-px bg-[#1a4a8e]/30" />
+      <div className="h-px bg-gray-100" />
       {/* Team 2 */}
-      <div className={`flex items-center gap-2 px-3 py-1.5 ${t2Win ? 'bg-[#00A651]/15' : t2Lose ? 'bg-[#E31837]/10' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
-        {t2 ? <TeamFlag teamName={t2} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-[#1a4a8e]/50 flex items-center justify-center text-[8px] text-white/30">?</span>}
-        <span className={`text-xs truncate flex-1 ${!t2 ? 'text-white/25 italic' : ''} ${t2Win ? 'text-[#00A651] font-bold' : ''} ${t2Lose ? 'text-[#E31837]' : ''} ${!t2Win && !t2Lose && t2 ? 'text-white/85' : ''}`}>
+      <div className={`flex items-center gap-2 px-2.5 py-1.5 ${t2Win ? 'bg-[#00A651]/12' : t2Lose ? 'bg-[#E31837]/8' : isDraw ? 'bg-[#D4A017]/10' : ''}`}>
+        {t2 ? <TeamFlag teamName={t2} size="sm" /> : <span className="w-5 h-3.5 flex-shrink-0 rounded-sm bg-gray-200 flex items-center justify-center text-[8px] text-gray-400">?</span>}
+        <span className={`text-[11px] truncate flex-1 ${!t2 ? 'text-gray-400 italic' : ''} ${t2Win ? 'text-[#00A651] font-bold' : ''} ${t2Lose ? 'text-[#E31837]' : ''} ${!t2Win && !t2Lose && t2 ? 'text-gray-700' : ''}`}>
           {t2 ? (TEAMS[t2]?.nameAr || t2) : getTeamRefDisplayName(t2Ref)}
         </span>
         {result !== undefined && (
-          <span className={`text-sm font-bold min-w-[20px] text-center ${t2Win ? 'text-[#00A651]' : t2Lose ? 'text-[#E31837]' : 'text-white/40'}`}>
+          <span className={`text-sm font-bold min-w-[18px] text-center ${t2Win ? 'text-[#00A651]' : t2Lose ? 'text-[#E31837]' : 'text-gray-400'}`}>
             {result.awayGoals}
           </span>
         )}
       </div>
       {/* Penalties */}
       {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
-        <div className="px-3 py-0.5 bg-[#002868]/30 border-t border-[#1a4a8e]/20">
-          <span className="text-[8px] text-amber-400">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
+        <div className="px-2.5 py-0.5 bg-amber-50 border-t border-amber-100">
+          <span className="text-[8px] text-amber-600">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
         </div>
       )}
     </div>
@@ -202,7 +202,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
             {thirdPlaceRanking.map((tp, idx) => {
               const td = TEAMS[tp.team]; const q = idx < 8;
               return (
-                <div key={tp.group} className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs ${q ? 'bg-[#00A651]/10 border border-[#00A651]/30' : 'bg-muted/30 border border-border/30'}`}>
+                <div key={tp.group} className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs ${q ? 'bg-[#00A651]/10 border border-[#00A651]/30' : 'bg-gray-100 border border-gray-200'}`}>
                   <span className="font-bold text-muted-foreground w-4">{idx + 1}</span>
                   {td && <TeamFlag teamName={tp.team} size="sm" />}
                   <span className="truncate font-medium">{td?.nameAr}</span>
@@ -215,44 +215,36 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
       )}
 
       {/* ============ DESKTOP BRACKET ============ */}
-      <div className="hidden lg:block bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-4 shadow-xl border border-[#1a4a8e]/30">
+      <div className="hidden lg:block bg-gradient-to-b from-gray-50 to-white rounded-2xl p-4 shadow-lg border border-gray-200">
 
         {/* The Bracket - CSS Grid approach */}
         <div className="overflow-x-auto">
           <div className="min-w-[900px]">
             {/* Round Labels */}
             <div className="grid gap-0 mb-2" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr auto 1fr 1fr 1fr 1fr' }}>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">دور الـ 32</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">دور الـ 16</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">ربع النهائي</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">نصف النهائي</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#FFD700] font-bold bg-[#FFD700]/15 px-3 py-0.5 rounded">النهائي</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">نصف النهائي</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">ربع النهائي</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">دور الـ 16</span></div>
-              <div className="text-center"><span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-2 py-0.5 rounded">دور الـ 32</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">دور الـ 32</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">دور الـ 16</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">ربع النهائي</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">نصف النهائي</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#FFD700]/30 px-3 py-0.5 rounded">النهائي</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">نصف النهائي</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">ربع النهائي</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">دور الـ 16</span></div>
+              <div className="text-center"><span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded">دور الـ 32</span></div>
             </div>
 
             {/* Bracket Grid */}
             <div className="grid gap-0 items-stretch" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr auto 1fr 1fr 1fr 1fr' }}>
               {/* === LEFT SIDE === */}
-
-              {/* Col 1: R32 */}
               <div className="flex flex-col justify-around gap-1 px-1">
                 {left.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
-
-              {/* Col 2: R16 */}
               <div className="flex flex-col justify-around gap-3 px-1">
                 {left.r16.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
-
-              {/* Col 3: QF */}
               <div className="flex flex-col justify-around gap-6 px-1">
                 {left.qf.map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
-
-              {/* Col 4: SF */}
               <div className="flex flex-col justify-center px-1">
                 <BMatch matchId={left.sf} {...ctx} />
               </div>
@@ -267,10 +259,10 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
                   </div>
                   <BMatch matchId={104} {...ctx} />
                 </div>
-                <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-36 my-2 drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]" />
+                <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-36 my-2 drop-shadow-[0_0_12px_rgba(255,215,0,0.3)]" />
                 <div>
                   <div className="text-center mb-1">
-                    <span className="inline-flex px-2 py-0.5 rounded-full bg-[#6B6300]/80 text-white/60 text-[8px] font-bold">
+                    <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[8px] font-bold">
                       المركز الثالث
                     </span>
                   </div>
@@ -279,23 +271,15 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
               </div>
 
               {/* === RIGHT SIDE === */}
-
-              {/* Col 6: SF */}
               <div className="flex flex-col justify-center px-1">
                 <BMatch matchId={right.sf} {...ctx} />
               </div>
-
-              {/* Col 7: QF */}
               <div className="flex flex-col justify-around gap-6 px-1">
                 {right.qf.map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
-
-              {/* Col 8: R16 */}
               <div className="flex flex-col justify-around gap-3 px-1">
                 {right.r16.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
-
-              {/* Col 9: R32 */}
               <div className="flex flex-col justify-around gap-1 px-1">
                 {right.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
@@ -304,22 +288,22 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
         </div>
       </div>
 
-      {/* ============ MOBILE / TABLET ============ */}
-      <div className="lg:hidden bg-gradient-to-b from-[#001a4a] to-[#0a2a5e] rounded-2xl p-3 shadow-xl border border-[#1a4a8e]/30">
+      {/* ============ MOBILE / TABLET - VERTICAL LAYOUT ============ */}
+      <div className="lg:hidden bg-gradient-to-b from-gray-50 to-white rounded-2xl p-3 shadow-lg border border-gray-200">
 
         {/* Center Logo */}
         <div className="flex justify-center mb-4">
-          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-28 drop-shadow-[0_0_15px_rgba(255,215,0,0.3)]" />
+          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-28" />
         </div>
 
-        <div className="space-y-4">
-          {/* === RIGHT SIDE (Top on mobile) === */}
+        <div className="space-y-5">
+          {/* === RIGHT SIDE (Top on mobile - was on right in desktop) === */}
           <div className="space-y-3">
             <div className="text-center">
-              <span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-3 py-1 rounded-full">القسم الأعلى → نصف النهائي 101</span>
+              <span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-3 py-1 rounded-full">القسم الأعلى ← نصف النهائي 101</span>
             </div>
             {[
-              { round: 'r32' as const, label: 'دور الـ 32', color: '#1a4a8e', icon: '⚽', matchIds: right.r32.flat() },
+              { round: 'r32' as const, label: 'دور الـ 32', color: '#002868', icon: '⚽', matchIds: right.r32.flat() },
               { round: 'r16' as const, label: 'دور الـ 16', color: '#E31837', icon: '🔥', matchIds: right.r16.flat() },
               { round: 'qf' as const, label: 'ربع النهائي', color: '#FFD700', icon: '⭐', matchIds: right.qf },
               { round: 'sf' as const, label: 'نصف النهائي', color: '#00A651', icon: '🏆', matchIds: [right.sf] },
@@ -327,7 +311,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
               <div key={round + '-right'}>
                 <div className="flex items-center justify-center gap-2 mb-1.5">
                   <span className="text-xs">{icon}</span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}25`, borderColor: `${color}40`, color: round === 'qf' ? '#002868' : 'white' }}>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}15`, borderColor: `${color}30`, color: color === '#FFD700' ? '#002868' : color }}>
                     {label}
                   </span>
                 </div>
@@ -340,20 +324,20 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
             ))}
           </div>
 
-          {/* Divider */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-px bg-[#1a4a8e]/30" />
-            <img src="/wc2026-logo-unofficial.svg" alt="" className="h-10 opacity-60" />
-            <div className="flex-1 h-px bg-[#1a4a8e]/30" />
+          {/* Divider with mini logo */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <img src="/wc2026-logo-unofficial.svg" alt="" className="h-8 opacity-50" />
+            <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          {/* === LEFT SIDE (Bottom on mobile) === */}
+          {/* === LEFT SIDE (Bottom on mobile - was on left in desktop) === */}
           <div className="space-y-3">
             <div className="text-center">
-              <span className="text-[10px] text-[#4a8ad4] font-bold bg-[#1a4a8e]/20 px-3 py-1 rounded-full">القسم الأدنى → نصف النهائي 102</span>
+              <span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-3 py-1 rounded-full">القسم الأدنى ← نصف النهائي 102</span>
             </div>
             {[
-              { round: 'r32' as const, label: 'دور الـ 32', color: '#1a4a8e', icon: '⚽', matchIds: left.r32.flat() },
+              { round: 'r32' as const, label: 'دور الـ 32', color: '#002868', icon: '⚽', matchIds: left.r32.flat() },
               { round: 'r16' as const, label: 'دور الـ 16', color: '#E31837', icon: '🔥', matchIds: left.r16.flat() },
               { round: 'qf' as const, label: 'ربع النهائي', color: '#FFD700', icon: '⭐', matchIds: left.qf },
               { round: 'sf' as const, label: 'نصف النهائي', color: '#00A651', icon: '🏆', matchIds: [left.sf] },
@@ -361,7 +345,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
               <div key={round + '-left'}>
                 <div className="flex items-center justify-center gap-2 mb-1.5">
                   <span className="text-xs">{icon}</span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}25`, borderColor: `${color}40`, color: round === 'qf' ? '#002868' : 'white' }}>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border" style={{ backgroundColor: `${color}15`, borderColor: `${color}30`, color: color === '#FFD700' ? '#002868' : color }}>
                     {label}
                   </span>
                 </div>
@@ -375,21 +359,25 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
           </div>
 
           {/* Divider */}
-          <div className="flex justify-center"><div className="w-px h-3 bg-[#4a8ad4]/20" /></div>
+          <div className="flex justify-center"><div className="w-px h-4 bg-gray-200" /></div>
 
           {/* Final & 3rd Place */}
           <div className="space-y-2">
             <div>
               <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="inline-flex px-2.5 py-1 rounded-full bg-[#6B6300]/60 text-white/60 text-[10px] font-bold border border-[#6B6300]/30">🥉 المركز الثالث</span>
+                <span className="inline-flex px-2.5 py-1 rounded-full bg-gray-200 text-gray-500 text-[10px] font-bold border border-gray-300">🥉 المركز الثالث</span>
               </div>
-              {MATCHES.filter(m => m.round === '3rd').map(match => <MobileBMatch key={match.id} matchId={match.id} {...ctx} />)}
+              <div className="max-w-xs mx-auto">
+                {MATCHES.filter(m => m.round === '3rd').map(match => <MobileBMatch key={match.id} matchId={match.id} {...ctx} />)}
+              </div>
             </div>
             <div>
               <div className="flex items-center justify-center gap-2 mb-2">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[10px] font-bold"><Trophy className="w-3 h-3" /> النهائي</span>
               </div>
-              {MATCHES.filter(m => m.round === 'final').map(match => <MobileBMatch key={match.id} matchId={match.id} {...ctx} />)}
+              <div className="max-w-xs mx-auto">
+                {MATCHES.filter(m => m.round === 'final').map(match => <MobileBMatch key={match.id} matchId={match.id} {...ctx} />)}
+              </div>
             </div>
           </div>
         </div>

@@ -785,7 +785,10 @@ export default function Home() {
       <footer className="bg-gradient-to-l from-[#002868] to-[#001a4a] mt-12">
         <div className="max-w-7xl mx-auto px-4 py-6 text-center">
           <p className="text-white/60 text-xs">
-            كأس العالم 2026™ — FIFA World Cup 2026™ — جميع الحقوق محفوظة
+            كأس العالم 2026™ — FIFA World Cup 2026™
+          </p>
+          <p className="text-[#FFD700]/80 text-xs mt-1 font-semibold">
+            جميع الحقوق محفوظة لـ SpeadySoft
           </p>
           <p className="text-white/40 text-xs mt-1">
             هذا الموقع غير رسمي ويهدف إلى الترفيه فقط

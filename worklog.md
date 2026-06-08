@@ -156,3 +156,32 @@ Stage Summary:
 - Knockout bracket redesigned with official FIFA-style dark blue theme
 - Official WC2026 SVG logos copied to public directory and used in header
 - Build verified successfully
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Replace WC2026 logo and redesign knockout bracket
+
+Work Log:
+- Analyzed two user-uploaded reference images using VLM: (1) WC logo reference (yellow circle with trophy), (2) professional FIFA bracket layout
+- Created new wc2026-logo.svg with yellow circle, trophy icon, "26" number, and "كأس العالم" text on dark blue background
+- Updated wc2026-logo-white.svg with white trophy version for header use
+- Completely redesigned KnockoutBracket.tsx with proper tournament bracket layout:
+  - Horizontal tree bracket with R32→R16→QF→SF→Final progression
+  - SVG connector lines between rounds showing match pairings
+  - Upper bracket (8 R32 → 4 R16 → 2 QF → SF 101) and Lower bracket (8 R32 → 4 R16 → 2 QF → SF 102)
+  - Final and 3rd Place match prominently displayed at the end
+  - Brighter, more visible connector lines (#4a8ad4 blue with gold junction dots)
+  - Desktop horizontal bracket with min-width 1100px and overflow-x-auto scroll
+  - Mobile fallback with vertical round-by-round layout
+  - Compact match cards with team flags, ref labels, scores, and match info
+- Verified registered/unregistered match filter is already implemented and working
+- Build verified successfully
+- Screenshots taken and analyzed - bracket properly shows connecting lines between rounds
+
+Stage Summary:
+- New WC2026 logo with yellow circle/trophy design created and deployed
+- Knockout bracket completely redesigned as a proper tournament bracket tree
+- Desktop shows horizontal bracket with SVG connector lines between rounds
+- Mobile shows vertical round-by-round layout
+- Registered/unregistered match filter confirmed working

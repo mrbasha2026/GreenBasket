@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { TEAMS, MATCHES, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } from '@/lib/wc2026-data';
+import { TEAMS, MATCHES, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName, ROUND_NAMES_AR } from '@/lib/wc2026-data';
 import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
@@ -62,7 +62,7 @@ function resolveTeamRef(
   return null;
 }
 
-// Compact bracket match card - LIGHT THEME for desktop
+// ──────────────────────── Desktop BMatch ────────────────────────
 interface BMatchProps {
   matchId: number;
   onMatchClick: (id: number) => void;
@@ -117,15 +117,225 @@ function BMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }
   );
 }
 
+// ──────────────────────── Tree Bracket Structures ────────────────────────
+interface TreeNode {
+  matchId: number;
+  children?: [TreeNode, TreeNode];
+}
 
+const rightTree: TreeNode = {
+  matchId: 101,
+  children: [
+    {
+      matchId: 97,
+      children: [
+        { matchId: 89, children: [{ matchId: 74 }, { matchId: 77 }] },
+        { matchId: 90, children: [{ matchId: 73 }, { matchId: 75 }] },
+      ],
+    },
+    {
+      matchId: 98,
+      children: [
+        { matchId: 93, children: [{ matchId: 83 }, { matchId: 84 }] },
+        { matchId: 94, children: [{ matchId: 81 }, { matchId: 82 }] },
+      ],
+    },
+  ],
+};
+
+const leftTree: TreeNode = {
+  matchId: 102,
+  children: [
+    {
+      matchId: 99,
+      children: [
+        { matchId: 91, children: [{ matchId: 76 }, { matchId: 78 }] },
+        { matchId: 92, children: [{ matchId: 79 }, { matchId: 80 }] },
+      ],
+    },
+    {
+      matchId: 100,
+      children: [
+        { matchId: 95, children: [{ matchId: 85 }, { matchId: 87 }] },
+        { matchId: 96, children: [{ matchId: 86 }, { matchId: 88 }] },
+      ],
+    },
+  ],
+};
+
+// ──────────────────────── MiniMatch (compact, flag-centric) ────────────────────────
+const ROUND_BORDER: Record<string, string> = {
+  r32: 'border-[#002868]/35',
+  r16: 'border-[#E31837]/35',
+  qf: 'border-[#FFD700]/50',
+  sf: 'border-[#00A651]/40',
+  final: 'border-[#FFD700]',
+  '3rd': 'border-gray-300',
+};
+
+const ROUND_DOT: Record<string, string> = {
+  r32: 'bg-[#002868]/50',
+  r16: 'bg-[#E31837]/50',
+  qf: 'bg-[#FFD700]/70',
+  sf: 'bg-[#00A651]/50',
+  final: 'bg-[#FFD700]',
+  '3rd': 'bg-gray-400',
+};
+
+function MiniMatch({ matchId, onMatchClick, standings, thirdPlaceRanking, results }: BMatchProps) {
+  const match = MATCHES.find(m => m.id === matchId);
+  if (!match) return null;
+  const result = results[matchId];
+  const t1Ref = match.team1Ref || match.team1;
+  const t2Ref = match.team2Ref || match.team2;
+  const t1 = resolveTeamRef(t1Ref, standings, thirdPlaceRanking, results);
+  const t2 = resolveTeamRef(t2Ref, standings, thirdPlaceRanking, results);
+  const isDraw = result
+    ? result.homeGoals === result.awayGoals &&
+      (result.homePenalties === undefined || result.awayPenalties === undefined || result.homePenalties === result.awayPenalties)
+    : false;
+  const t1Win = result
+    ? result.homeGoals > result.awayGoals ||
+      (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.homePenalties > result.awayPenalties)
+    : false;
+  const t2Win = result
+    ? result.awayGoals > result.homeGoals ||
+      (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.awayPenalties > result.homePenalties)
+    : false;
+  const t1Lose = result ? !t1Win && !isDraw : false;
+  const t2Lose = result ? !t2Win && !isDraw : false;
+
+  const teamRow = (resolved: string | null, ref: string, win: boolean, lose: boolean, goals: number | undefined) => {
+    const shortName = resolved
+      ? (TEAMS[resolved]?.nameAr?.slice(0, 5) || resolved.slice(0, 3))
+      : getTeamRefDisplayName(ref).slice(0, 5);
+    const fullName = resolved
+      ? (TEAMS[resolved]?.nameAr || resolved)
+      : getTeamRefDisplayName(ref);
+
+    return (
+      <div
+        className={`flex items-center gap-[3px] px-1.5 py-[3px] min-h-[20px] ${win ? 'bg-[#00A651]/18' : lose ? 'bg-[#E31837]/10' : isDraw ? 'bg-[#D4A017]/12' : ''}`}
+        title={fullName}
+      >
+        {resolved ? (
+          <TeamFlag teamName={resolved} size="sm" />
+        ) : (
+          <span className="w-[18px] h-[12px] flex-shrink-0 rounded-[2px] bg-[#c5d3e8] flex items-center justify-center text-[6px] text-[#6b84a8] font-bold">?</span>
+        )}
+        <span
+          className={`text-[8px] leading-tight truncate max-w-[32px] ${
+            !resolved ? 'text-[#6b84a8] italic text-[7px]' : ''
+          } ${win ? 'text-[#00A651] font-bold' : ''} ${lose ? 'text-[#E31837]' : ''} ${
+            isDraw ? 'text-[#D4A017] font-semibold' : ''
+          } ${!win && !lose && !isDraw && resolved ? 'text-[#1a3a5c]' : ''}`}
+        >
+          {shortName}
+        </span>
+        {result !== undefined && (
+          <span
+            className={`text-[10px] font-bold mr-auto min-w-[12px] text-center ${
+              win ? 'text-[#00A651]' : lose ? 'text-[#E31837]' : isDraw ? 'text-[#D4A017]' : 'text-[#6b84a8]'
+            }`}
+          >
+            {goals}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const round = match.round || '';
+  const borderColor = ROUND_BORDER[round] || 'border-[#c5d3e8]';
+  const dotColor = ROUND_DOT[round] || 'bg-gray-400';
+
+  return (
+    <div
+      dir="rtl"
+      className={`cursor-pointer rounded-md overflow-hidden border ${borderColor} bg-[#e8eef6] hover:bg-[#dce5f2] hover:shadow-sm hover:ring-1 hover:ring-[#002868]/25 transition-all min-w-[68px] max-w-[88px]`}
+      onClick={() => onMatchClick(matchId)}
+    >
+      {/* Tiny round dot indicator */}
+      <div className={`h-[3px] ${dotColor}`} />
+      {teamRow(t1, t1Ref, t1Win, t1Lose, result?.homeGoals)}
+      <div className="h-px bg-[#c5d3e8]/50" />
+      {teamRow(t2, t2Ref, t2Win, t2Lose, result?.awayGoals)}
+      {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
+        <div className="px-1 py-[1px] bg-amber-100/60 border-t border-amber-200/50 text-center">
+          <span className="text-[6px] text-amber-700">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────── BracketNode (recursive tree) ────────────────────────
+interface BracketCtx {
+  standings: ReturnType<typeof calculateGroupStandings>;
+  thirdPlaceRanking: ReturnType<typeof calculateThirdPlaceRanking>;
+  results: Record<number, MatchResult>;
+  onMatchClick: (id: number) => void;
+}
+
+const CONN_W = 'w-[10px]';   // horizontal line length
+const CONN_VW = 'w-[2px]';   // vertical line width
+const CONN_HH = 'h-[2px]';   // horizontal line thickness
+
+/** Get connector color based on the parent match round */
+function getConnColor(matchId: number): string {
+  const m = MATCHES.find(x => x.id === matchId);
+  const round = m?.round || '';
+  switch (round) {
+    case 'r16': return 'bg-[#E31837]/25';
+    case 'qf': return 'bg-[#FFD700]/35';
+    case 'sf': return 'bg-[#00A651]/30';
+    default: return 'bg-[#002868]/25';
+  }
+}
+
+function BracketNode({ node, ctx }: { node: TreeNode; ctx: BracketCtx }) {
+  if (!node.children) {
+    // Leaf: just the match box
+    return <MiniMatch matchId={node.matchId} {...ctx} />;
+  }
+
+  const connColor = getConnColor(node.matchId);
+
+  return (
+    <div className="flex items-stretch" dir="ltr">
+      {/* ── Children column ── */}
+      <div className="flex flex-col justify-around">
+        <div className="flex items-center">
+          <BracketNode node={node.children[0]} ctx={ctx} />
+          <div className={`${CONN_HH} ${CONN_W} ${connColor} shrink-0`} />
+        </div>
+        <div className="flex items-center">
+          <BracketNode node={node.children[1]} ctx={ctx} />
+          <div className={`${CONN_HH} ${CONN_W} ${connColor} shrink-0`} />
+        </div>
+      </div>
+
+      {/* ── Vertical connector ── */}
+      <div className={`${CONN_VW} self-stretch ${connColor} shrink-0`} />
+
+      {/* ── Horizontal line + Parent match ── */}
+      <div className="flex items-center self-center shrink-0">
+        <div className={`${CONN_HH} ${CONN_W} ${connColor} shrink-0`} />
+        <MiniMatch matchId={node.matchId} {...ctx} />
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────── Main Component ────────────────────────
 export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
   const { results } = useWC2026Store();
   const standings = useMemo(() => calculateGroupStandings(results), [results]);
   const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
-  const ctx = { standings, thirdPlaceRanking, results, onMatchClick };
+  const ctx: BracketCtx = { standings, thirdPlaceRanking, results, onMatchClick };
   const showTP = thirdPlaceRanking.some(tp => tp.points > 0);
 
-  // Bracket structure - pairs that feed into each other
+  // Desktop bracket structure
   const left = {
     r32: [[76, 78], [79, 80], [85, 87], [86, 88]],
     r16: [[91, 92], [95, 96]],
@@ -160,10 +370,8 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
         </div>
       )}
 
-      {/* ============ DESKTOP BRACKET ============ */}
+      {/* ═══════════════════ DESKTOP BRACKET ═══════════════════ */}
       <div className="hidden lg:block bg-gradient-to-b from-gray-50 to-white rounded-2xl p-4 shadow-lg border border-gray-200">
-
-        {/* The Bracket - CSS Grid approach */}
         <div className="overflow-x-auto">
           <div className="min-w-[900px]">
             {/* Round Labels */}
@@ -181,7 +389,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
 
             {/* Bracket Grid */}
             <div className="grid gap-0 items-stretch" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr auto 1fr 1fr 1fr 1fr' }}>
-              {/* === LEFT SIDE === */}
+              {/* LEFT SIDE */}
               <div className="flex flex-col justify-around gap-1 px-1">
                 {left.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
               </div>
@@ -195,7 +403,7 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
                 <BMatch matchId={left.sf} {...ctx} />
               </div>
 
-              {/* === CENTER === */}
+              {/* CENTER */}
               <div className="flex flex-col items-center justify-center gap-3 px-3 min-w-[160px]">
                 <div>
                   <div className="text-center mb-1">
@@ -208,15 +416,13 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
                 <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-36 my-2 drop-shadow-[0_0_12px_rgba(255,215,0,0.3)]" />
                 <div>
                   <div className="text-center mb-1">
-                    <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[8px] font-bold">
-                      المركز الثالث
-                    </span>
+                    <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[8px] font-bold">المركز الثالث</span>
                   </div>
                   <BMatch matchId={103} {...ctx} />
                 </div>
               </div>
 
-              {/* === RIGHT SIDE === */}
+              {/* RIGHT SIDE */}
               <div className="flex flex-col justify-center px-1">
                 <BMatch matchId={right.sf} {...ctx} />
               </div>
@@ -234,132 +440,86 @@ export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
         </div>
       </div>
 
-      {/* ============ MOBILE / TABLET - VERTICAL TREE BRACKET ============ */}
-      <div className="lg:hidden bg-gradient-to-b from-gray-50 to-white rounded-2xl p-2 shadow-lg border border-gray-200 overflow-x-auto">
-
+      {/* ═══════════════════ MOBILE TREE BRACKET ═══════════════════ */}
+      <div className="lg:hidden bg-gradient-to-b from-gray-50 to-white rounded-2xl p-3 shadow-lg border border-gray-200">
         {/* Logo */}
         <div className="flex justify-center mb-3">
-          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-20" />
+          <img src="/wc2026-logo-unofficial.svg" alt="كأس العالم 2026" className="h-16 drop-shadow-[0_0_8px_rgba(255,215,0,0.2)]" />
         </div>
 
-        {/* === TOP HALF BRACKET (Right side from desktop → SF 101) === */}
-        <div className="text-center mb-2">
-          <span className="text-[9px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded-full">نصف النهائي 101</span>
+        {/* Round legend */}
+        <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
+          <span className="inline-flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded bg-[#002868]/10 text-[#002868]">
+            <span className="w-2 h-2 rounded-full bg-[#002868]/40" /> دور الـ 32
+          </span>
+          <span className="inline-flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded bg-[#E31837]/10 text-[#E31837]">
+            <span className="w-2 h-2 rounded-full bg-[#E31837]/40" /> دور الـ 16
+          </span>
+          <span className="inline-flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded bg-[#FFD700]/15 text-[#B8860B]">
+            <span className="w-2 h-2 rounded-full bg-[#FFD700]/60" /> ربع النهائي
+          </span>
+          <span className="inline-flex items-center gap-1 text-[8px] font-semibold px-1.5 py-0.5 rounded bg-[#00A651]/10 text-[#00A651]">
+            <span className="w-2 h-2 rounded-full bg-[#00A651]/40" /> نصف النهائي
+          </span>
         </div>
 
-        {/* Vertical tree: R32 → R16 → QF → SF */}
-        <div className="min-w-[340px]">
-          {/* R32 - 8 matches in 4 pairs */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#002868]/60 font-bold">دور الـ 32</span></div>
-            <div className="grid grid-cols-4 gap-0.5">
-              {right.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
-            </div>
+        {/* ── Right Half Tree (→ SF 101) ── */}
+        <div className="mb-4">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2.5 py-0.5 rounded-full">
+              شجرة نصف النهائي 101
+            </span>
           </div>
-
-          {/* Connector */}
-          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
-
-          {/* R16 - 4 matches */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#E31837]/60 font-bold">دور الـ 16</span></div>
-            <div className="grid grid-cols-2 gap-1 mx-auto" style={{ maxWidth: '50%' }}>
-              {right.r16.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
-            </div>
-          </div>
-
-          {/* Connector */}
-          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
-
-          {/* QF - 2 matches */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#FFD700]/80 font-bold">ربع النهائي</span></div>
-            <div className="flex justify-center gap-2">
-              {right.qf.map(id => <div key={id} className="w-[45%]"><BMatch matchId={id} {...ctx} /></div>)}
-            </div>
-          </div>
-
-          {/* Connector */}
-          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
-
-          {/* SF - 1 match */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#00A651]/80 font-bold">نصف النهائي</span></div>
-            <div className="flex justify-center">
-              <div className="w-[45%]"><BMatch matchId={right.sf} {...ctx} /></div>
+          <div className="overflow-x-auto pb-2 -mx-1">
+            <div className="min-w-[340px] px-1">
+              <BracketNode node={rightTree} ctx={ctx} />
             </div>
           </div>
         </div>
 
-        {/* Divider with logo */}
+        {/* ── Divider ── */}
         <div className="flex items-center gap-2 my-3">
           <div className="flex-1 h-px bg-[#c5d3e8]" />
-          <img src="/wc2026-logo-unofficial.svg" alt="" className="h-7 opacity-40" />
+          <img src="/wc2026-logo-unofficial.svg" alt="" className="h-6 opacity-30" />
           <div className="flex-1 h-px bg-[#c5d3e8]" />
         </div>
 
-        {/* === BOTTOM HALF BRACKET (Left side from desktop → SF 102) === */}
-        <div className="text-center mb-2">
-          <span className="text-[9px] text-[#002868] font-bold bg-[#002868]/10 px-2 py-0.5 rounded-full">نصف النهائي 102</span>
-        </div>
-
-        <div className="min-w-[340px]">
-          {/* R32 - 8 matches */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#002868]/60 font-bold">دور الـ 32</span></div>
-            <div className="grid grid-cols-4 gap-0.5">
-              {left.r32.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
-            </div>
+        {/* ── Left Half Tree (→ SF 102) ── */}
+        <div className="mb-4">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="text-[10px] text-[#002868] font-bold bg-[#002868]/10 px-2.5 py-0.5 rounded-full">
+              شجرة نصف النهائي 102
+            </span>
           </div>
-
-          {/* Connector */}
-          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
-
-          {/* R16 - 4 matches */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#E31837]/60 font-bold">دور الـ 16</span></div>
-            <div className="grid grid-cols-2 gap-1 mx-auto" style={{ maxWidth: '50%' }}>
-              {left.r16.flat().map(id => <BMatch key={id} matchId={id} {...ctx} />)}
-            </div>
-          </div>
-
-          {/* Connector */}
-          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
-
-          {/* QF - 2 matches */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#FFD700]/80 font-bold">ربع النهائي</span></div>
-            <div className="flex justify-center gap-2">
-              {left.qf.map(id => <div key={id} className="w-[45%]"><BMatch matchId={id} {...ctx} /></div>)}
-            </div>
-          </div>
-
-          {/* Connector */}
-          <div className="flex justify-center my-1"><div className="w-px h-2 bg-[#c5d3e8]" /></div>
-
-          {/* SF - 1 match */}
-          <div className="mb-1">
-            <div className="text-center mb-1"><span className="text-[8px] text-[#00A651]/80 font-bold">نصف النهائي</span></div>
-            <div className="flex justify-center">
-              <div className="w-[45%]"><BMatch matchId={left.sf} {...ctx} /></div>
+          <div className="overflow-x-auto pb-2 -mx-1">
+            <div className="min-w-[340px] px-1">
+              <BracketNode node={leftTree} ctx={ctx} />
             </div>
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="flex justify-center my-3"><div className="w-px h-3 bg-[#c5d3e8]" /></div>
+        {/* ── Divider ── */}
+        <div className="flex items-center gap-2 my-3">
+          <div className="flex-1 h-px bg-[#c5d3e8]" />
+          <Trophy className="w-4 h-4 text-[#FFD700]" />
+          <div className="flex-1 h-px bg-[#c5d3e8]" />
+        </div>
 
-        {/* Final & 3rd Place */}
-        <div className="space-y-3 max-w-[70%] mx-auto">
+        {/* ── Final & 3rd Place ── */}
+        <div className="space-y-3 max-w-[75%] mx-auto" dir="rtl">
+          {/* 3rd Place */}
           <div>
             <div className="flex items-center justify-center gap-1 mb-1">
-              <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[9px] font-bold">🥉 المركز الثالث</span>
+              <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-200 text-gray-500 text-[9px] font-bold">المركز الثالث</span>
             </div>
             <BMatch matchId={103} {...ctx} />
           </div>
+          {/* Final */}
           <div>
             <div className="flex items-center justify-center gap-1 mb-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[9px] font-bold"><Trophy className="w-2.5 h-2.5" /> النهائي</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-[#FFD700] to-[#FF8C00] text-[#002868] text-[9px] font-bold shadow-sm">
+                <Trophy className="w-2.5 h-2.5" /> النهائي
+              </span>
             </div>
             <BMatch matchId={104} {...ctx} />
           </div>

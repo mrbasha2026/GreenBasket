@@ -255,3 +255,29 @@ Stage Summary:
 - Knockout page has logo + title header at top and logo in center bracket
 - Mobile users can scroll horizontally to see the full bracket
 - Desktop users see the full bracket without scroll
+---
+Task ID: 1
+Agent: main
+Task: Convert mobile knockout bracket from simple stacked layout to true tree/bracket structure with connector lines
+
+Work Log:
+- Analyzed existing KnockoutBracket.tsx (370 lines) - desktop used CSS grid, mobile used simple stacked grids with no connector lines
+- Designed recursive tree data structure (TreeNode) mapping the bracket hierarchy: R32→R16→QF→SF for both halves
+- Right tree: M74+M77→M89, M73+M75→M90, M89+M90→M97, M83+M84→M93, M81+M82→M94, M93+M94→M98, M97+M98→M101
+- Left tree: M76+M78→M91, M79+M80→M92, M91+M92→M99, M85+M87→M95, M86+M88→M96, M95+M96→M100, M99+M100→M102
+- Created MiniMatch component: compact flag-centric match card with round-colored border and dot indicator
+- Created BracketNode recursive component: renders children + CSS connector lines (horizontal + vertical) + parent match
+- Added round-based coloring: R32=navy, R16=red, QF=gold, SF=green for borders, dots, and connector lines
+- Added round legend at top of mobile bracket
+- Fixed typo: r.homePenalties → result.homePenalties in BMatch
+- Removed static column headers (wouldn't align with recursive tree)
+- Used dir="ltr" on bracket tree for standard left-to-right bracket direction
+- Final & 3rd Place matches shown below both trees using BMatch for full detail
+- Build passes successfully
+
+Stage Summary:
+- Mobile bracket is now a true tree/bracket structure with visual connector lines
+- Each match box shows flag + short name + score for qualified teams
+- Round colors help identify which stage each match belongs to
+- Desktop bracket remains unchanged
+- File: /home/z/my-project/src/components/wc2026/KnockoutBracket.tsx (531 lines)

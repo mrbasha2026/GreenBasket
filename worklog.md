@@ -281,3 +281,24 @@ Stage Summary:
 - Round colors help identify which stage each match belongs to
 - Desktop bracket remains unchanged
 - File: /home/z/my-project/src/components/wc2026/KnockoutBracket.tsx (531 lines)
+
+---
+Task ID: 1
+Agent: main
+Task: Fix image football-logos.cc not showing and width:105% issue in knockout bracket
+
+Work Log:
+- Investigated the issue: image `tournaments_fifa-world-cup-2026--unofficial.football-logos.cc` was not appearing
+- Found the SVG file at `/home/z/my-project/upload/tournaments_fifa-world-cup-2026--unofficial.football-logos.cc.svg`
+- Copied it to `/home/z/my-project/public/wc2026-trophy.svg` for the Next.js project
+- Also copied to `/home/z/my-project/world-cup-2026/static/wc2026-trophy.svg` for the SvelteKit project
+- Updated KnockoutBracket.tsx to use `/wc2026-trophy.svg` instead of `/wc2026-logo.png`
+- Verified no `width: 105%` or `width: 104%` exists in any source code
+- Clean rebuilt both Next.js and SvelteKit projects
+- Verified trophy SVG is properly included in both build outputs
+
+Stage Summary:
+- Trophy SVG (football-logos.cc) now properly placed in public/static directories
+- KnockoutBracket.tsx uses correct image path `/wc2026-trophy.svg`
+- No width percentage styles exist in any component code
+- Both projects built successfully with the trophy included

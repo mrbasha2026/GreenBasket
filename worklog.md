@@ -208,3 +208,29 @@ Stage Summary:
 - Final/Trophy positioned at center of the bracket
 - Professional FIFA-style two-sided tournament bracket layout
 - Responsive design with three breakpoints
+---
+Task ID: 1
+Agent: main
+Task: Fix header logo, knockout bracket layout, and favorites knockout matches
+
+Work Log:
+- Created new horizontal WC 2026 white logo SVG for the header (trophy + FIFA WORLD CUP 26™ text)
+- Created new official WC 2026 logo SVG for center of knockout bracket (circle design with trophy, 26, host nations)
+- Completely rewrote Knockout.svelte with a responsive vertical layout:
+  - Top row: R32 → R16 → QF → SF (converging inward)
+  - Center: Final match + Large WC 2026 logo + Third Place match
+  - Bottom row: SF → QF → R16 → R32 (converging inward)
+  - No horizontal scroll, all data visible
+  - Bigger center logo (140x140px)
+- Fixed Favorites.svelte to show knockout matches for favorite teams:
+  - Added resolveKnockoutTeam() call to resolve references like "1A", "W73" to actual team IDs
+  - Added getDisplayTeam() function to show resolved team names for knockout matches
+- Updated +page.svelte header to use the new horizontal white logo
+- Fixed SVG file ownership issue by recreating via bash
+
+Stage Summary:
+- Header now shows proper WC 2026 horizontal white logo with trophy icon
+- Knockout bracket uses responsive flex layout without horizontal scroll
+- Center logo is bigger (140x140px) between Final and Third Place
+- Favorites page now correctly resolves knockout team references to show matches for favorite teams
+- Build passes successfully

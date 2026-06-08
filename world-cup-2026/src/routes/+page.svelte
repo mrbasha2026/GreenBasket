@@ -27,10 +27,6 @@
     <div class="header-content">
       <div class="logo-section">
         <img src="/wc2026-logo-white.svg" alt="كأس العالم 2026" class="header-logo" />
-        <div class="header-text">
-          <h1>كأس العالم 2026</h1>
-          <p class="subtitle">FIFA World Cup 26™</p>
-        </div>
       </div>
       <button class="reset-btn" onclick={resetAll}>مسح الكل</button>
     </div>
@@ -74,7 +70,7 @@
   .header {
     background: linear-gradient(135deg, #001B44 0%, #002855 50%, #001B44 100%);
     border-bottom: 2px solid rgba(255, 215, 0, 0.3);
-    padding: 12px 16px;
+    padding: 8px 16px;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -92,26 +88,12 @@
   .logo-section {
     display: flex;
     align-items: center;
-    gap: 12px;
   }
 
   .header-logo {
-    width: 48px;
-    height: 48px;
+    height: 44px;
+    width: auto;
     object-fit: contain;
-  }
-
-  .header-text h1 {
-    color: #FFD700;
-    font-size: 1.3rem;
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  .subtitle {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.75rem;
-    margin: 0;
   }
 
   .reset-btn {
@@ -134,7 +116,7 @@
     background: rgba(0, 0, 0, 0.3);
     border-bottom: 1px solid rgba(255, 215, 0, 0.1);
     position: sticky;
-    top: 76px;
+    top: 62px;
     z-index: 99;
   }
 

@@ -1,7 +1,7 @@
 <script>
   import { allMatches, getTeam, stageNames } from '$lib/data.js';
   import { scores, favoriteTeams, favoriteMatches } from '$lib/stores.js';
-  import { getMatchResult } from '$lib/logic.js';
+  import { resolveKnockoutTeam, getMatchResult } from '$lib/logic.js';
   import TeamBadge from './TeamBadge.svelte';
   import ScoreDialog from './ScoreDialog.svelte';
 
@@ -9,9 +9,22 @@
   let favTeams = $derived($favoriteTeams);
   let favMatchIds = $derived($favoriteMatches);
 
+  // Check if a knockout match involves a favorite team by resolving the references
+  function matchInvolvesFavTeam(match) {
+    if (match.type === 'group') {
+      return favTeams.includes(match.home) || favTeams.includes(match.away);
+    }
+    // For knockout matches, resolve the team references
+    const homeTeam = resolveKnockoutTeam(match.home, currentScores);
+    const awayTeam = resolveKnockoutTeam(match.away, currentScores);
+    if (homeTeam && favTeams.includes(homeTeam.id)) return true;
+    if (awayTeam && favTeams.includes(awayTeam.id)) return true;
+    return false;
+  }
+
   let favMatchesList = $derived(allMatches.filter(m => {
     if (favMatchIds.includes(m.id)) return true;
-    if (favTeams.includes(m.home) || favTeams.includes(m.away)) return true;
+    if (matchInvolvesFavTeam(m)) return true;
     return false;
   }));
 
@@ -33,6 +46,14 @@
   function toggleFav(matchId) {
     favoriteMatches.toggle(matchId);
   }
+
+  // Resolve display team for knockout matches
+  function getDisplayTeam(match, side) {
+    if (match.type === 'group') {
+      return getTeam(side === 'home' ? match.home : match.away);
+    }
+    return resolveKnockoutTeam(side === 'home' ? match.home : match.away, currentScores);
+  }
 </script>
 
 <div class="favorites-container">
@@ -45,6 +66,8 @@
     <div class="matches-list">
       {#each combined as match (match.id)}
         {@const score = currentScores[match.id]}
+        {@const homeDisplayTeam = getDisplayTeam(match, 'home')}
+        {@const awayDisplayTeam = getDisplayTeam(match, 'away')}
         {@const homeResult = getMatchResult(score, true)}
         {@const awayResult = getMatchResult(score, false)}
         {@const isFav = favMatchIds.includes(match.id)}
@@ -61,7 +84,11 @@
           </div>
           <div class="match-body">
             <div class="team-row" class:result-win={homeResult === 'win'} class:result-loss={homeResult === 'loss'} class:result-draw={homeResult === 'draw'}>
-              <TeamBadge teamId={match.home} />
+              {#if homeDisplayTeam}
+                <TeamBadge teamId={homeDisplayTeam.id} />
+              {:else}
+                <span class="tbd">{match.home}</span>
+              {/if}
             </div>
             <div class="score-area">
               <ScoreDialog
@@ -73,7 +100,11 @@
               />
             </div>
             <div class="team-row" class:result-win={awayResult === 'win'} class:result-loss={awayResult === 'loss'} class:result-draw={awayResult === 'draw'}>
-              <TeamBadge teamId={match.away} />
+              {#if awayDisplayTeam}
+                <TeamBadge teamId={awayDisplayTeam.id} />
+              {:else}
+                <span class="tbd">{match.away}</span>
+              {/if}
             </div>
           </div>
         </div>
@@ -96,6 +127,11 @@
   }
   .hint {
     font-size: 0.8rem;
+  }
+  .tbd {
+    color: rgba(255,255,255,0.25);
+    font-size: 0.7rem;
+    font-style: italic;
   }
   .matches-list {
     display: flex;

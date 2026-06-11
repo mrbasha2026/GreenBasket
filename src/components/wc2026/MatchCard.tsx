@@ -92,6 +92,11 @@ function resolveTeamRefForCard(
 
 export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
   const { results, favoriteMatches, toggleFavoriteMatch } = useWC2026Store();
+
+  // Calculate standings for resolving knockout team refs - MUST be before any early return (React Hooks rule)
+  const standings = useMemo(() => calculateGroupStandings(results), [results]);
+  const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
+
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
 
@@ -99,10 +104,6 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
   const isKnockout = match.round !== 'group';
   const isFavorite = favoriteMatches.has(matchId);
   const hasResult = !!result;
-
-  // Calculate standings for resolving knockout team refs
-  const standings = useMemo(() => calculateGroupStandings(results), [results]);
-  const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
 
   // For knockout matches, resolve team refs
   const team1Resolved = isKnockout && match.team1Ref

@@ -277,9 +277,93 @@ export function formatDateAr(dateStr: string): string {
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+// ──────────────────────── Venue Timezone Mapping ────────────────────────
+// World Cup 2026 venues in USA, Mexico, Canada - summer timezone offsets (DST)
+// Offset is the number of hours BEHIND UTC (negative means ahead of UTC)
+const VENUE_TZ_OFFSETS: Record<string, number> = {
+  // Mexico - CDT (UTC-5)
+  'Mexico City Stadium': -5,
+  'Estadio Guadalajara': -5,
+  'Estadio Monterrey': -5,
+  // US Eastern - EDT (UTC-4)
+  'Boston Stadium': -4,
+  'New York New Jersey Stadium': -4,
+  'Philadelphia Stadium': -4,
+  'Miami Stadium': -4,
+  'Atlanta Stadium': -4,
+  // US Central - CDT (UTC-5)
+  'Houston Stadium': -5,
+  'Dallas Stadium': -5,
+  'Kansas City Stadium': -5,
+  // US Pacific - PDT (UTC-7)
+  'Los Angeles Stadium': -7,
+  'San Francisco Bay Area Stadium': -7,
+  'Seattle Stadium': -7,
+  // Canada Eastern - EDT (UTC-4)
+  'Toronto Stadium': -4,
+  // Canada Pacific - PDT (UTC-7)
+  'BC Place Vancouver': -7,
+};
+
+/**
+ * Convert match time from venue local timezone to user's local timezone
+ * Returns formatted time string in user's local timezone
+ */
+export function formatMatchLocalTime(date: string, time: string, venue: string): string {
+  if (!time) return '';
+
+  const venueOffset = VENUE_TZ_OFFSETS[venue];
+  if (venueOffset === undefined) return time; // Fallback: show as-is if venue unknown
+
+  try {
+    const [hours, minutes] = time.split(':').map(Number);
+    // Convert venue local time to UTC:
+    // venue local time = UTC + offset (offset is negative for west of GMT)
+    // So UTC = venue local - offset
+    // e.g., 18:00 at UTC-5 → UTC = 18:00 - (-5) = 23:00 UTC
+    const utcHours = hours - venueOffset;
+
+    const utcDate = new Date(Date.UTC(
+      parseInt(date.substring(0, 4)),
+      parseInt(date.substring(5, 7)) - 1,
+      parseInt(date.substring(8, 10)),
+      utcHours,
+      minutes,
+      0
+    ));
+
+    // Format in user's local timezone using Intl API
+    const localTimeStr = utcDate.toLocaleTimeString('ar-SA', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+    // Some browsers return "24:00" instead of "00:00"
+    if (localTimeStr.startsWith('24')) {
+      return '00:' + localTimeStr.substring(3);
+    }
+
+    return localTimeStr;
+  } catch {
+    return time; // Fallback
+  }
+}
+
+/**
+ * Get the user's local timezone name for display
+ */
+export function getUserTimezoneName(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Format match time in Arabic-friendly format
- * e.g., "18:00" -> "18:00" or "6:00 م"
+ * DEPRECATED: Use formatMatchLocalTime for proper timezone conversion
  */
 export function formatTimeAr(time?: string): string {
   if (!time) return '';

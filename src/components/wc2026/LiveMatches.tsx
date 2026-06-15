@@ -173,7 +173,7 @@ interface LiveMatchInfo {
 }
 
 export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) => void }) {
-  const { results, liveMatchStatuses } = useWC2026Store();
+  const { results, liveMatchStatuses, liveScores } = useWC2026Store();
   const [currentTime, setCurrentTime] = useState('');
 
   const standings = useMemo(() => calculateGroupStandings(results), [results]);
@@ -235,7 +235,7 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
     // Sort by time
     matches.sort((a, b) => a.utcDate.getTime() - b.utcDate.getTime());
     return matches;
-  }, [results, liveMatchStatuses]);
+  }, [results, liveMatchStatuses, liveScores]);
 
   // Get next few upcoming matches (even if not today)
   const upcomingMatches = useMemo(() => {
@@ -392,6 +392,11 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
                                liveMatchStatuses[match.id]}
                             </span>
                           )}
+                          {liveScores[match.id]?.elapsed !== null && liveScores[match.id]?.elapsed !== undefined && (
+                            <span className="text-[10px] text-red-300 bg-red-500/10 px-1.5 py-0.5 rounded font-bold">
+                              {toArabicDigits(liveScores[match.id].elapsed!)}'
+                            </span>
+                          )}
                         </span>
                       )}
                       {status === 'upcoming' && (
@@ -455,6 +460,29 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
                             {result.homePenalties !== undefined && result.awayPenalties !== undefined && (
                               <span className="text-xs text-amber-600 font-medium mr-1">
                                 ({toArabicDigits(result.homePenalties)}-{toArabicDigits(result.awayPenalties)} ترجيح)
+                              </span>
+                            )}
+                          </div>
+                        ) : liveScores[match.id] && status === 'live' ? (
+                          /* Live score from API */
+                          <div className="flex flex-col items-center gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-red-500 text-white font-extrabold text-lg animate-pulse">
+                                {toArabicDigits(liveScores[match.id].homeGoals)}
+                              </span>
+                              <span className="text-red-400 text-sm font-bold">-</span>
+                              <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-red-500 text-white font-extrabold text-lg animate-pulse">
+                                {toArabicDigits(liveScores[match.id].awayGoals)}
+                              </span>
+                            </div>
+                            {liveScores[match.id].homePenalties !== undefined && liveScores[match.id].awayPenalties !== undefined && (
+                              <span className="text-[10px] text-amber-500 font-medium">
+                                ({toArabicDigits(liveScores[match.id].homePenalties!)}-{toArabicDigits(liveScores[match.id].awayPenalties!)} ترجيح)
+                              </span>
+                            )}
+                            {liveScores[match.id].elapsed !== null && (
+                              <span className="text-[10px] text-red-400 font-bold">
+                                ⏱ {toArabicDigits(liveScores[match.id].elapsed!)}'
                               </span>
                             )}
                           </div>

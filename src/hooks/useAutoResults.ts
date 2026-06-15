@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useWC2026Store } from '@/store/wc2026-store';
-import { fetchResults, fetchLiveMatches, processFixtures, isMatchFinished, isMatchLive, type MatchStatusAPI } from '@/lib/auto-results';
+import { fetchResults, fetchLiveMatches, processFixtures, isMatchFinished, isMatchLive, type MatchStatusAPI, type APIFixture } from '@/lib/auto-results';
 import { MATCHES } from '@/lib/wc2026-data';
+import type { LiveScore } from '@/store/wc2026-store';
 
 // Venue timezone offsets for determining if a match is happening now
 const VENUE_TZ_OFFSETS: Record<string, number> = {
@@ -64,6 +65,18 @@ function hasActiveOrUpcomingMatches(): boolean {
   return false;
 }
 
+// Extract live score from a fixture
+function fixtureToLiveScore(fixture: APIFixture): LiveScore {
+  return {
+    homeGoals: fixture.goalsHome ?? 0,
+    awayGoals: fixture.goalsAway ?? 0,
+    status: fixture.status,
+    elapsed: fixture.elapsed ?? null,
+    homePenalties: fixture.scorePenaltyHome ?? undefined,
+    awayPenalties: fixture.scorePenaltyAway ?? undefined,
+  };
+}
+
 export function useAutoResults() {
   const {
     autoResultsEnabled,
@@ -74,6 +87,7 @@ export function useAutoResults() {
     setAutoResultsEnabled,
     setFetchState,
     setLiveMatchStatuses,
+    setLiveScores,
   } = useWC2026Store();
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -120,8 +134,9 @@ export function useAutoResults() {
         const processed = processFixtures(response.fixtures);
 
         // Extract only finished match results
-        const autoResults: Record<number, ReturnType<typeof extractResult>> = {};
+        const autoResults: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }> = {};
         const liveStatuses: Record<number, string> = {};
+        const liveScoreMap: Record<number, LiveScore> = {};
 
         for (const [matchIdStr, data] of Object.entries(processed)) {
           const matchId = parseInt(matchIdStr);
@@ -130,6 +145,8 @@ export function useAutoResults() {
           }
           if (isMatchLive(data.status as MatchStatusAPI)) {
             liveStatuses[matchId] = data.status;
+            // Store live score from fixture data
+            liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
           }
         }
 
@@ -138,16 +155,14 @@ export function useAutoResults() {
           setAutoResults(autoResults);
         }
         setLiveMatchStatuses(liveStatuses);
+        setLiveScores(liveScoreMap);
       }
 
       setFetchState(false, null, Date.now());
     } catch (error) {
       setFetchState(false, 'فشل في جلب النتائج', null);
     }
-  }, [isFetching, setAutoResults, setFetchState, setLiveMatchStatuses]);
-
-  // Helper to extract result (needed for typing)
-  function extractResult(data: { result: any }) { return data.result; }
+  }, [isFetching, setAutoResults, setFetchState, setLiveMatchStatuses, setLiveScores]);
 
   // Fetch live matches specifically
   const fetchLive = useCallback(async () => {
@@ -163,24 +178,31 @@ export function useAutoResults() {
         const processed = processFixtures(response.fixtures);
         const liveStatuses: Record<number, string> = {};
         const autoResults: Record<number, any> = {};
+        const liveScoreMap: Record<number, LiveScore> = {};
 
         for (const [matchIdStr, data] of Object.entries(processed)) {
           const matchId = parseInt(matchIdStr);
           if (isMatchFinished(data.status as MatchStatusAPI)) {
             autoResults[matchId] = data.result;
           }
+          // Store status for both live AND recently finished matches
           liveStatuses[matchId] = data.status;
+          // Store live score for live matches
+          if (isMatchLive(data.status as MatchStatusAPI)) {
+            liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
+          }
         }
 
         if (Object.keys(autoResults).length > 0) {
           setAutoResults(autoResults);
         }
         setLiveMatchStatuses(liveStatuses);
+        setLiveScores(liveScoreMap);
       }
     } catch {
       // Silently fail for live checks
     }
-  }, [setAutoResults, setLiveMatchStatuses]);
+  }, [setAutoResults, setLiveMatchStatuses, setLiveScores]);
 
   // Start/stop auto-fetching based on enabled state
   useEffect(() => {

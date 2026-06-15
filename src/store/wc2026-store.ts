@@ -2,6 +2,15 @@
 import { create } from 'zustand';
 import { MatchResult } from '@/lib/wc2026-logic';
 
+export interface LiveScore {
+  homeGoals: number;
+  awayGoals: number;
+  status: string; // 1H, HT, 2H, ET, BT, P, etc.
+  elapsed: number | null; // minute of match
+  homePenalties?: number;
+  awayPenalties?: number;
+}
+
 interface WC2026State {
   results: Record<number, MatchResult>;
   predictions: Record<number, MatchResult>;
@@ -17,6 +26,7 @@ interface WC2026State {
   fetchError: string | null;
   isFetching: boolean;
   liveMatchStatuses: Record<number, string>; // matchId → status (1H, HT, 2H, FT, etc.)
+  liveScores: Record<number, LiveScore>; // matchId → current live score
 
   // Actions
   setMatchResult: (matchId: number, result: MatchResult) => void;
@@ -33,6 +43,7 @@ interface WC2026State {
   setAutoResultsEnabled: (enabled: boolean) => void;
   setFetchState: (isFetching: boolean, error: string | null, lastFetchTime: number | null) => void;
   setLiveMatchStatuses: (statuses: Record<number, string>) => void;
+  setLiveScores: (scores: Record<number, LiveScore>) => void;
 }
 
 const STORAGE_KEY = 'wc2026-results';
@@ -143,6 +154,7 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   fetchError: null,
   isFetching: false,
   liveMatchStatuses: {},
+  liveScores: {},
 
   setMatchResult: (matchId, result) =>
     set((state) => {
@@ -228,4 +240,6 @@ export const useWC2026Store = create<WC2026State>((set) => ({
     set({ isFetching, fetchError: error, ...(lastFetchTime !== null ? { lastFetchTime } : {}) }),
   setLiveMatchStatuses: (statuses) =>
     set({ liveMatchStatuses: statuses }),
+  setLiveScores: (scores) =>
+    set({ liveScores: scores }),
 }));

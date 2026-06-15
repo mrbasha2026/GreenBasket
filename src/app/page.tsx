@@ -670,7 +670,7 @@ export default function Home() {
               <Trophy className="w-5 h-5 text-[#FFD700]" />
             </div>
 
-            <KnockoutBracket onMatchClick={handleMatchClick} />
+            <KnockoutBracket onMatchClick={handleMatchClick} isMatchSubscribed={isMatchSubscribed} onToggleNotif={toggleMatchNotification} />
           </div>
         )}
 

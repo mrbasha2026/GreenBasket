@@ -34,6 +34,32 @@ export function PredictionGame() {
   const totalPredictions = Object.keys(predictions).length;
   const totalMatches = MATCHES.length;
 
+  // Calculate correct/wrong prediction counts
+  const predictionStats = useMemo(() => {
+    let exact = 0;
+    let correctResult = 0;
+    let wrong = 0;
+    let checked = 0; // predictions that have actual results to compare
+    for (const match of MATCHES) {
+      const pred = predictions[match.id];
+      const actual = results[match.id];
+      if (pred && actual) {
+        checked++;
+        if (pred.homeGoals === actual.homeGoals && pred.awayGoals === actual.awayGoals) {
+          exact++;
+        } else {
+          const predResult = pred.homeGoals > pred.awayGoals ? 'win' :
+            pred.homeGoals < pred.awayGoals ? 'loss' : 'draw';
+          const actualResult = actual.homeGoals > actual.awayGoals ? 'win' :
+            actual.homeGoals < actual.awayGoals ? 'loss' : 'draw';
+          if (predResult === actualResult) correctResult++;
+          else wrong++;
+        }
+      }
+    }
+    return { exact, correctResult, wrong, checked };
+  }, [predictions, results]);
+
   const toggleRound = (round: string) => {
     setExpandedRounds(prev => {
       const next = new Set(prev);
@@ -94,7 +120,7 @@ export function PredictionGame() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <div className="text-center p-3 rounded-lg bg-[#00A651]/10 border border-[#00A651]/20">
             <p className="text-2xl font-extrabold text-[#00A651]">{toArabicDigits(totalPredictions)}</p>
             <p className="text-xs text-muted-foreground mt-1">مباراة متوقعة</p>
@@ -103,7 +129,46 @@ export function PredictionGame() {
             <p className="text-2xl font-extrabold text-[#002868] dark:text-blue-400">{toArabicDigits(totalMatches - totalPredictions)}</p>
             <p className="text-xs text-muted-foreground mt-1">مباراة متبقية</p>
           </div>
+          <div className="text-center p-3 rounded-lg bg-[#FFD700]/10 border border-[#FFD700]/20">
+            <p className="text-2xl font-extrabold text-[#FFD700]">{toArabicDigits(predictionStats.exact + predictionStats.correctResult)}</p>
+            <p className="text-xs text-muted-foreground mt-1">توقع صحيح</p>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-[#E31837]/10 border border-[#E31837]/20">
+            <p className="text-2xl font-extrabold text-[#E31837]">{toArabicDigits(predictionStats.wrong)}</p>
+            <p className="text-xs text-muted-foreground mt-1">توقع خاطئ</p>
+          </div>
         </div>
+
+        {/* Accuracy indicator */}
+        {predictionStats.checked > 0 && (
+          <div className="p-3 rounded-lg bg-muted/30 border border-border/30 mb-4">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="text-muted-foreground font-medium">دقة التوقعات</span>
+              <span className="font-bold text-[#FFD700]">
+                {toArabicDigits(Math.round(((predictionStats.exact + predictionStats.correctResult) / predictionStats.checked) * 100))}%
+              </span>
+            </div>
+            <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden flex">
+              <div
+                className="h-full bg-[#FFD700] rounded-r-full transition-all duration-500"
+                style={{ width: `${predictionStats.checked > 0 ? (predictionStats.exact / predictionStats.checked) * 100 : 0}%` }}
+              />
+              <div
+                className="h-full bg-[#00A651] transition-all duration-500"
+                style={{ width: `${predictionStats.checked > 0 ? (predictionStats.correctResult / predictionStats.checked) * 100 : 0}%` }}
+              />
+              <div
+                className="h-full bg-[#E31837] rounded-l-full transition-all duration-500"
+                style={{ width: `${predictionStats.checked > 0 ? (predictionStats.wrong / predictionStats.checked) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between mt-1.5 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#FFD700]" /> دقيقة {toArabicDigits(predictionStats.exact)}</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#00A651]" /> صحيحة {toArabicDigits(predictionStats.correctResult)}</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#E31837]" /> خاطئة {toArabicDigits(predictionStats.wrong)}</span>
+            </div>
+          </div>
+        )}
 
         {/* Progress bar */}
         <div className="space-y-2">

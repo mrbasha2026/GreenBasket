@@ -180,7 +180,10 @@ const API_HOST = 'v3.football.api-sports.io';
 function getDirectApiKey(): string | null {
   if (typeof window === 'undefined') return null;
   // Check for direct API key in env or localStorage
-  return process.env.NEXT_PUBLIC_API_FOOTBALL_KEY || localStorage.getItem('wc2026-api-key') || null;
+  // Priority: localStorage user-entered key > env var
+  const localKey = localStorage.getItem('wc2026-api-key');
+  if (localKey) return localKey;
+  return process.env.NEXT_PUBLIC_API_FOOTBALL_KEY || null;
 }
 
 function isNetlifyFunctionsAvailable(): boolean {
@@ -251,7 +254,58 @@ function mapDirectFixture(fixture: any): APIFixture {
 
 // Fetch results - tries Netlify Functions first, always falls back to direct API
 export async function fetchResults(date?: string, includeStandings?: boolean): Promise<APIResponse> {
-  // Try Netlify Functions first (works on deployed Netlify, may fail locally)
+  // Try direct API first (more reliable than Netlify Functions for free plan)
+  const apiKey = getDirectApiKey();
+  if (apiKey) {
+    try {
+      // IMPORTANT: Free plans don't support league+season=2026 together.
+      // Use date-only query, then filter for World Cup (league=1) locally
+      let endpoint: string;
+      if (date) {
+        endpoint = `/fixtures?date=${date}`;
+      } else {
+        endpoint = `/fixtures?league=1&season=2026`;
+      }
+      const data = await directApiFetch(endpoint);
+      if (data) {
+        // If date-based query, filter for World Cup league only
+        let rawFixtures = data.response || [];
+        if (date && rawFixtures.length > 0) {
+          rawFixtures = rawFixtures.filter((f: any) => f.league?.id === 1);
+        }
+        const fixtures = rawFixtures.map(mapDirectFixture);
+
+        // Fetch standings if requested (may fail on free plan)
+        let standings = null;
+        if (includeStandings) {
+          try {
+            const standingsData = await directApiFetch('/standings?league=1&season=2026');
+            if (standingsData?.response?.[0]?.league) {
+              const league = standingsData.response[0].league;
+              standings = {
+                league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
+                groups: (league.standings || []).map((group: any) => group.map((team: any) => ({
+                  rank: team.rank,
+                  team: { name: team.team.name, id: team.team.id, logo: team.team.logo },
+                  points: team.points,
+                  all: team.all,
+                  form: team.form,
+                  goalsDiff: team.goalsDiff,
+                  description: team.description,
+                }))),
+              };
+            }
+          } catch { /* standings not available on free plan */ }
+        }
+
+        return { success: true, count: fixtures.length, fixtures, standings };
+      }
+    } catch (error) {
+      console.error('[auto-results] Direct API fetch failed:', error);
+    }
+  }
+
+  // Try Netlify Functions as fallback
   try {
     let url = '/.netlify/functions/fetch-results';
     const params = new URLSearchParams();
@@ -263,69 +317,59 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
     if (response.ok) {
       const data = await safeParseJSON<APIResponse>(response);
       if (data) {
-        // Return the response from Netlify function (whether success or error)
-        // This way the caller sees the real error message from the API
         if (data.success || data.error) return data;
       }
     }
-  } catch { /* Fall through to direct API */ }
+  } catch { /* Fall through */ }
 
-  // Direct API fallback (works everywhere if API key is provided)
-  const apiKey = getDirectApiKey();
-  if (!apiKey) {
-    return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED', message: 'أضف مفتاح API في الإعدادات أو اضبط API_FOOTBALL_KEY في Netlify' };
-  }
-
-  try {
-    // IMPORTANT: Free plans don't support league+season=2026 together.
-    // Use date-only query, then filter for World Cup (league=1) locally
-    let endpoint: string;
-    if (date) {
-      endpoint = `/fixtures?date=${date}`;
-    } else {
-      endpoint = `/fixtures?league=1&season=2026`;
-    }
-    const data = await directApiFetch(endpoint);
-    if (!data) return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
-
-    // If date-based query, filter for World Cup league only
-    let rawFixtures = data.response || [];
-    if (date && rawFixtures.length > 0) {
-      rawFixtures = rawFixtures.filter((f: any) => f.league?.id === 1);
-    }
-    const fixtures = rawFixtures.map(mapDirectFixture);
-
-    // Fetch standings if requested
-    let standings = null;
-    if (includeStandings) {
-      const standingsData = await directApiFetch('/standings?league=1&season=2026');
-      if (standingsData?.response?.[0]?.league) {
-        const league = standingsData.response[0].league;
-        standings = {
-          league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
-          groups: (league.standings || []).map((group: any) => group.map((team: any) => ({
-            rank: team.rank,
-            team: { name: team.team.name, id: team.team.id, logo: team.team.logo },
-            points: team.points,
-            all: team.all,
-            form: team.form,
-            goalsDiff: team.goalsDiff,
-            description: team.description,
-          }))),
-        };
-      }
-    }
-
-    return { success: true, count: fixtures.length, fixtures, standings };
-  } catch (error) {
-    console.error('[auto-results] Direct API fetch failed:', error);
-    return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR', message: 'خطأ في الاتصال' };
-  }
+  // No API key and no Netlify Functions
+  return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED', message: 'أضف مفتاح API-Football في الإعدادات للاتصال المباشر' };
 }
 
-// Fetch live matches - tries Netlify Functions first, always falls back to direct API
+// Fetch live matches - tries direct API first, then Netlify Functions
 export async function fetchLiveMatches(): Promise<APIResponse> {
-  // Try Netlify Functions first
+  // Try direct API first (more reliable than Netlify Functions for free plan)
+  const apiKey = getDirectApiKey();
+  if (apiKey) {
+    try {
+      // Free plans don't support live=all with season=2026
+      // Use date-based query and filter for live World Cup matches
+      const now = new Date();
+      const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+      const data = await directApiFetch(`/fixtures?date=${today}`);
+      if (data) {
+        // Filter for World Cup league AND live status
+        const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
+        const wcLive = (data.response || [])
+          .filter((f: any) => f.league?.id === 1 && liveStatuses.includes(f.fixture?.status?.short))
+          .map(mapDirectFixture);
+
+        // Also fetch events for each live fixture (up to 5)
+        for (const fixture of wcLive.slice(0, 5)) {
+          try {
+            const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
+            if (eventsData?.response) {
+              fixture.events = eventsData.response.map((e: any) => ({
+                time: { elapsed: e.time.elapsed, extra: e.time.extra },
+                type: e.type,
+                detail: e.detail,
+                team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
+                player: { name: e.player.name, id: e.player.id },
+                assist: { name: e.assist.name, id: e.assist.id },
+                comments: e.comments,
+              }));
+            }
+          } catch { /* Skip events for this fixture */ }
+        }
+
+        return { success: true, count: wcLive.length, fixtures: wcLive };
+      }
+    } catch (error) {
+      console.error('[auto-results] Direct live fetch failed:', error);
+    }
+  }
+
+  // Try Netlify Functions as fallback
   try {
     const url = '/.netlify/functions/fetch-live?stats=true';
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -335,47 +379,8 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
     }
   } catch { /* Fall through */ }
 
-  // Direct API fallback
-  const apiKey = getDirectApiKey();
   if (!apiKey) return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED' };
-
-  try {
-    // Free plans don't support live=all with season=2026
-    // Use date-based query and filter for live World Cup matches
-    const now = new Date();
-    const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
-    const data = await directApiFetch(`/fixtures?date=${today}`);
-    if (!data) return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
-
-    // Filter for World Cup league AND live status
-    const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
-    const wcLive = (data.response || [])
-      .filter((f: any) => f.league?.id === 1 && liveStatuses.includes(f.fixture?.status?.short))
-      .map(mapDirectFixture);
-
-    // Also fetch events for each live fixture (up to 5)
-    for (const fixture of wcLive.slice(0, 5)) {
-      try {
-        const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
-        if (eventsData?.response) {
-          fixture.events = eventsData.response.map((e: any) => ({
-            time: { elapsed: e.time.elapsed, extra: e.time.extra },
-            type: e.type,
-            detail: e.detail,
-            team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
-            player: { name: e.player.name, id: e.player.id },
-            assist: { name: e.assist.name, id: e.assist.id },
-            comments: e.comments,
-          }));
-        }
-      } catch { /* Skip events for this fixture */ }
-    }
-
-    return { success: true, count: wcLive.length, fixtures: wcLive };
-  } catch (error) {
-    console.error('[auto-results] Direct live fetch failed:', error);
-    return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR' };
-  }
+  return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
 }
 
 // Fetch single fixture detail - tries Netlify Functions first, falls back to direct API

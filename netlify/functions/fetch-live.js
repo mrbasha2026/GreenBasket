@@ -1,14 +1,12 @@
 // Netlify Function: Fetch live match data with events from API-Football
 // For live matches, we also fetch events (goals, cards, subs) in real-time
 
-const API_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
-const API_HOST = 'api-football-v1.p.rapidapi.com';
+const API_BASE = 'https://v3.football.api-sports.io';
+const API_HOST = 'v3.football.api-sports.io';
 
 function makeHeaders(apiKey) {
   return {
     'x-apisports-key': apiKey,
-    'x-rapidapi-key': apiKey,
-    'x-rapidapi-host': API_HOST,
   };
 }
 

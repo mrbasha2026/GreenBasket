@@ -174,8 +174,8 @@ async function safeParseJSON<T>(response: Response): Promise<T | null> {
 
 // === DIRECT API ACCESS (for local dev when Netlify Functions are unavailable) ===
 
-const API_DIRECT_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
-const API_HOST = 'api-football-v1.p.rapidapi.com';
+const API_DIRECT_BASE = 'https://v3.football.api-sports.io';
+const API_HOST = 'v3.football.api-sports.io';
 
 function getDirectApiKey(): string | null {
   if (typeof window === 'undefined') return null;
@@ -198,8 +198,6 @@ async function directApiFetch(endpoint: string): Promise<any> {
     method: 'GET',
     headers: {
       'x-apisports-key': apiKey,
-      'x-rapidapi-key': apiKey,
-      'x-rapidapi-host': API_HOST,
     },
   });
   if (!response.ok) return null;

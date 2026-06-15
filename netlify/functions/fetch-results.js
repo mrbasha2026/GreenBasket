@@ -2,14 +2,12 @@
 // Includes: fixtures, events, lineups, statistics, standings
 // Proxies requests to api-football.com to keep API key server-side
 
-const API_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
-const API_HOST = 'api-football-v1.p.rapidapi.com';
+const API_BASE = 'https://v3.football.api-sports.io';
+const API_HOST = 'v3.football.api-sports.io';
 
 function makeHeaders(apiKey) {
   return {
     'x-apisports-key': apiKey,
-    'x-rapidapi-key': apiKey,
-    'x-rapidapi-host': API_HOST,
   };
 }
 
@@ -177,6 +175,12 @@ exports.handler = async (event) => {
     if (date) url += `&date=${date}`;
 
     const mainRes = await apiFetch(url, apiKey);
+    
+    // Check if season is not accessible (free plan limitation)
+    if (mainRes.data?.errors?.plan) {
+      return errorResponse('SEASON_NOT_ACCESSIBLE', `الخطة المجانية لا تدعم موسم ${season}. ` + mainRes.data.errors.plan);
+    }
+    
     if (mainRes.error) return errorResponse('API_ERROR', `خطأ من API: ${mainRes.error}`);
     if (!mainRes.data) return errorResponse('API_ERROR', 'لا توجد بيانات من API');
 

@@ -1,0 +1,1 @@
+import{N as e,_ as t,f as n,u as r,v as i,y as a}from"../chunks/BE2uIYuF.js";import"../chunks/xihTtKlq.js";var o=a(`<link rel="icon" href="wc2026-logo-official.svg"/>`);function s(a,s){var c=i();r(`12qhfyh`,e=>{t(e,o())}),n(e(c),()=>s.children),t(a,c)}export{s as component};

@@ -65,3 +65,26 @@ Stage Summary:
 - Subscriptions persist in localStorage across page loads
 - Notification count shown in nav bar when active
 - Auto-cleanup: subscriptions removed after match starts
+---
+Task ID: 3
+Agent: Main Agent
+Task: Add notification bell to ALL matches including knockout bracket
+
+Work Log:
+- Updated KnockoutBracket.tsx to support notifications on all match cards
+- Added Bell/BellRing import from lucide-react
+- Updated BracketCtx interface to include isMatchSubscribed and onToggleNotif
+- Added notification bell button to BMatch (desktop bracket) - between team1 row and divider
+- Added notification bell row to MMatch (mobile bracket) - bottom of card
+- Updated KnockoutBracketProps to accept isMatchSubscribed and onToggleNotif
+- Passed notification functions from page.tsx to KnockoutBracket component
+- Build successful with no errors
+
+Stage Summary:
+- Notification bell now available on ALL 104 matches:
+  - 72 group stage matches (via MatchCard)
+  - 32 knockout matches in matches tab (via MatchCard)
+  - 32 knockout matches in bracket tab (via BMatch/MMatch)
+  - Favorite matches section (via MatchCard)
+- Desktop bracket: bell appears between team1 row and divider
+- Mobile bracket: bell appears as a small row at the bottom of each card

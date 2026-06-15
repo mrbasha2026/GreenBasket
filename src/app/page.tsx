@@ -14,9 +14,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing, Wifi, WifiOff, RefreshCw, Settings, Key, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { useMatchNotifications } from '@/hooks/useMatchNotifications';
 import { useAutoResults } from '@/hooks/useAutoResults';
+import { testApiKey, saveApiKey, removeApiKey, getApiKeyInfo, type ApiKeyType } from '@/lib/auto-results';
 import { ThemeToggle } from '@/components/wc2026/ThemeToggle';
 import { CountdownTimer } from '@/components/wc2026/CountdownTimer';
 import { PredictionGame } from '@/components/wc2026/PredictionGame';
@@ -29,6 +30,13 @@ export default function Home() {
   const { autoResultsEnabled, isFetching, fetchError, lastFetchTime, toggleAutoResults, refreshNow } = useAutoResults();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
+
+  // API Key modal state
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [apiKeyType, setApiKeyType] = useState<ApiKeyType>('apisports');
+  const [apiKeyTesting, setApiKeyTesting] = useState(false);
+  const [apiKeyTestResult, setApiKeyTestResult] = useState<{ valid: boolean; error: string | null; accountInfo?: any; detectedType?: ApiKeyType } | null>(null);
 
   // Search/filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -478,6 +486,25 @@ export default function Home() {
                 )}
                 <span>{fetchError ? 'خطأ API' : autoResultsEnabled ? 'مزامنة تلقائية' : 'تفعيل المزامنة'}</span>
               </button>
+              {/* API Settings button */}
+              <button
+                onClick={() => {
+                  const info = getApiKeyInfo();
+                  if (info) {
+                    setApiKeyInput(info.key);
+                    setApiKeyType(info.type);
+                  } else {
+                    setApiKeyInput('');
+                    setApiKeyType('apisports');
+                  }
+                  setApiKeyTestResult(null);
+                  setShowApiKeyModal(true);
+                }}
+                className={`p-1 rounded-md hover:bg-muted transition-colors ${fetchError ? 'text-[#E31837] animate-pulse' : ''}`}
+                title="إعدادات API"
+              >
+                <Key className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={refreshNow}
                 className="p-1 rounded-md hover:bg-muted transition-colors"
@@ -487,25 +514,9 @@ export default function Home() {
                 <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
               </button>
               {autoResultsEnabled && fetchError && (
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-[#E31837] max-w-[200px] truncate" title={fetchError}>
-                    {fetchError}
-                  </span>
-                  {fetchError.includes('API') && (
-                    <button
-                      onClick={() => {
-                        const key = prompt('أدخل مفتاح API-Football (من api-sports.io):');
-                        if (key) {
-                          localStorage.setItem('wc2026-api-key', key);
-                          refreshNow();
-                        }
-                      }}
-                      className="text-[9px] text-blue-500 hover:text-blue-400 underline max-w-[200px] text-right"
-                    >
-                      أدخل مفتاح API يدوياً
-                    </button>
-                  )}
-                </div>
+                <span className="text-[10px] text-[#E31837] max-w-[250px] truncate" title={fetchError}>
+                  {fetchError}
+                </span>
               )}
               {autoResultsEnabled && lastFetchTime && !fetchError && (
                 <span className="text-[10px] text-muted-foreground">
@@ -983,6 +994,184 @@ export default function Home() {
         open={dialogOpen}
         onOpenChange={handleDialogOpenChange}
       />
+
+      {/* API Key Settings Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowApiKeyModal(false)}>
+          <div className="bg-card border border-border rounded-xl shadow-2xl w-[90vw] max-w-md p-6 text-right" dir="rtl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Key className="w-5 h-5 text-[#FFD700]" />
+                إعدادات مفتاح API
+              </h3>
+              <button onClick={() => setShowApiKeyModal(false)} className="text-muted-foreground hover:text-foreground text-xl leading-none">&times;</button>
+            </div>
+
+            {/* Current key status */}
+            {getApiKeyInfo() && !apiKeyTestResult && (
+              <div className="mb-4 p-3 rounded-lg bg-[#00A651]/10 border border-[#00A651]/20">
+                <div className="flex items-center gap-2 text-[#00A651] text-sm">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>مفتاح API محفوظ ({getApiKeyInfo()!.type === 'rapidapi' ? 'RapidAPI' : 'api-sports.io'})</span>
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {getApiKeyInfo()!.key.substring(0, 8)}...{getApiKeyInfo()!.key.substring(getApiKeyInfo()!.key.length - 4)}
+                </div>
+              </div>
+            )}
+
+            {/* Instructions */}
+            <div className="mb-4 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground space-y-1">
+              <p><strong>كيف تحصل على مفتاح API مجاني؟</strong></p>
+              <p>1. اذهب إلى <a href="https://dashboard.api-football.com/register" target="_blank" rel="noopener" className="text-blue-500 underline">dashboard.api-football.com</a></p>
+              <p>2. أنشئ حساب مجاني</p>
+              <p>3. انسخ مفتاح API من لوحة التحكم</p>
+              <p>4. الصقه هنا واضغط "اختبار"</p>
+              <p className="text-[#FFD700] mt-1">أو استخدم مفتاح RapidAPI إذا كان لديك اشتراك هناك</p>
+            </div>
+
+            {/* Key type selector */}
+            <div className="mb-3">
+              <label className="text-sm font-medium mb-1 block">نوع المفتاح</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setApiKeyType('apisports')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    apiKeyType === 'apisports'
+                      ? 'bg-[#00A651] text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  api-sports.io
+                </button>
+                <button
+                  onClick={() => setApiKeyType('rapidapi')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                    apiKeyType === 'rapidapi'
+                      ? 'bg-[#FFD700] text-black'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  RapidAPI
+                </button>
+              </div>
+            </div>
+
+            {/* Key input */}
+            <div className="mb-3">
+              <label className="text-sm font-medium mb-1 block">مفتاح API</label>
+              <Input
+                type="password"
+                value={apiKeyInput}
+                onChange={e => { setApiKeyInput(e.target.value); setApiKeyTestResult(null); }}
+                placeholder={apiKeyType === 'rapidapi' ? 'مفتاح RapidAPI...' : 'مفتاح api-sports.io...'}
+                className="text-left dir-ltr font-mono text-sm"
+                dir="ltr"
+              />
+            </div>
+
+            {/* Test result */}
+            {apiKeyTestResult && (
+              <div className={`mb-3 p-3 rounded-lg text-sm ${
+                apiKeyTestResult.valid
+                  ? 'bg-[#00A651]/10 border border-[#00A651]/20'
+                  : 'bg-[#E31837]/10 border border-[#E31837]/20'
+              }`}>
+                {apiKeyTestResult.valid ? (
+                  <div>
+                    <div className="flex items-center gap-2 text-[#00A651] font-medium">
+                      <CheckCircle className="w-4 h-4" />
+                      <span>المفتاح صحيح ويعمل!</span>
+                      {apiKeyTestResult.detectedType && (
+                        <span className="text-xs bg-[#FFD700]/20 text-[#FFD700] px-2 py-0.5 rounded">
+                          تم التعرف تلقائياً: {apiKeyTestResult.detectedType === 'rapidapi' ? 'RapidAPI' : 'api-sports.io'}
+                        </span>
+                      )}
+                    </div>
+                    {apiKeyTestResult.accountInfo && (
+                      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                        {apiKeyTestResult.accountInfo.firstName && <p>الحساب: {apiKeyTestResult.accountInfo.firstName} {apiKeyTestResult.accountInfo.lastName}</p>}
+                        {apiKeyTestResult.accountInfo.plan && <p>الخطة: {apiKeyTestResult.accountInfo.plan}</p>}
+                        {apiKeyTestResult.accountInfo.requestsToday !== undefined && <p>طلبات اليوم: {apiKeyTestResult.accountInfo.requestsToday} / {apiKeyTestResult.accountInfo.requestsLimit}</p>}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2 text-[#E31837]">
+                    <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">المفتاح لا يعمل</p>
+                      <p className="text-xs text-[#E31837]/80 mt-0.5">{apiKeyTestResult.error}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (!apiKeyInput.trim()) return;
+                  setApiKeyTesting(true);
+                  setApiKeyTestResult(null);
+                  try {
+                    const result = await testApiKey(apiKeyInput.trim(), apiKeyType);
+                    setApiKeyTestResult(result);
+                    if (result.valid) {
+                      const finalType = result.detectedType || apiKeyType;
+                      saveApiKey(apiKeyInput.trim(), finalType);
+                      setApiKeyType(finalType);
+                    }
+                  } catch (err: any) {
+                    setApiKeyTestResult({ valid: false, error: err.message });
+                  }
+                  setApiKeyTesting(false);
+                }}
+                disabled={!apiKeyInput.trim() || apiKeyTesting}
+                className="flex-1 py-2 px-4 rounded-lg bg-[#00A651] text-white font-medium text-sm hover:bg-[#00A651]/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {apiKeyTesting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    جاري الاختبار...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    اختبار وحفظ
+                  </>
+                )}
+              </button>
+              {getApiKeyInfo() && (
+                <button
+                  onClick={() => {
+                    removeApiKey();
+                    setApiKeyInput('');
+                    setApiKeyTestResult(null);
+                    refreshNow();
+                  }}
+                  className="py-2 px-4 rounded-lg bg-[#E31837]/10 text-[#E31837] font-medium text-sm hover:bg-[#E31837]/20 flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  حذف
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setShowApiKeyModal(false);
+                  if (apiKeyTestResult?.valid) {
+                    refreshNow();
+                  }
+                }}
+                className="py-2 px-4 rounded-lg bg-muted text-muted-foreground font-medium text-sm hover:bg-muted/80"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

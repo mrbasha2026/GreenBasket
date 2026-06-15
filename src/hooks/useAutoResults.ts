@@ -230,18 +230,28 @@ export function useAutoResults() {
 
       if (response.error === 'API_KEY_NOT_CONFIGURED') {
         consecutiveErrorsRef.current++;
-        setFetchState(false, 'مفتاح API غير مُعد', null);
+        setFetchState(false, 'مفتاح API غير مُعد - اضغط على إعدادات API', null);
+        return;
+      }
+      if (response.error === 'SUBSCRIPTION_ERROR') {
+        // Don't retry aggressively - this requires user action
+        setFetchState(false, response.message || 'المفتاح غير مشترك في API-Football', null);
+        return;
+      }
+      if (response.error === 'INVALID_KEY') {
+        setFetchState(false, response.message || 'مفتاح API غير صحيح', null);
+        return;
+      }
+      if (response.error === 'RATE_LIMIT') {
+        setFetchState(false, response.message || 'تم تجاوز حد الطلبات', null);
         return;
       }
       if (response.error === 'SEASON_NOT_ACCESSIBLE') {
-        // Don't count as a "real" error that triggers backoff - this is a known limitation
-        // Just show the message once and stop retrying aggressively
         setFetchState(false, response.message || 'الخطة المجانية لا تدعم موسم 2026 بعد', null);
         return;
       }
       if (response.error === 'INVALID_RESPONSE' || response.error === 'NETWORK_ERROR' || response.error === 'API_ERROR') {
         consecutiveErrorsRef.current++;
-        // Show the actual error message from the API if available
         const errorMsg = response.message || 'لا يمكن الاتصال بالخادم';
         setFetchState(false, errorMsg, null);
         return;

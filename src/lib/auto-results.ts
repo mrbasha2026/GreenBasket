@@ -175,42 +175,204 @@ async function safeParseJSON<T>(response: Response): Promise<T | null> {
 // === DIRECT API ACCESS (for local dev when Netlify Functions are unavailable) ===
 
 const API_DIRECT_BASE = 'https://v3.football.api-sports.io';
+const API_RAPIDAPI_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
 const API_HOST = 'v3.football.api-sports.io';
 
-function getDirectApiKey(): string | null {
+// Key type stored alongside the key in localStorage
+export type ApiKeyType = 'apisports' | 'rapidapi';
+
+export interface ApiKeyInfo {
+  key: string;
+  type: ApiKeyType;
+}
+
+function getDirectApiKeyInfo(): ApiKeyInfo | null {
   if (typeof window === 'undefined') return null;
-  // Check for direct API key in env or localStorage
   // Priority: localStorage user-entered key > env var
   const localKey = localStorage.getItem('wc2026-api-key');
-  if (localKey) return localKey;
-  return process.env.NEXT_PUBLIC_API_FOOTBALL_KEY || null;
+  if (localKey) {
+    const keyType = (localStorage.getItem('wc2026-api-key-type') || 'apisports') as ApiKeyType;
+    return { key: localKey, type: keyType };
+  }
+  const envKey = process.env.NEXT_PUBLIC_API_FOOTBALL_KEY || null;
+  if (envKey) return { key: envKey, type: 'apisports' };
+  return null;
+}
+
+function getDirectApiKey(): string | null {
+  const info = getDirectApiKeyInfo();
+  return info?.key || null;
 }
 
 function isNetlifyFunctionsAvailable(): boolean {
-  // If deployed on Netlify (has .netlify path), prefer functions
-  // On localhost, we still try functions first but fall back to direct API
   return typeof window !== 'undefined';
 }
 
-// Direct API fetch (bypasses Netlify Functions, used in local dev)
-async function directApiFetch(endpoint: string): Promise<any> {
-  const apiKey = getDirectApiKey();
-  if (!apiKey) return null;
+// Result from direct API fetch - includes error info instead of silently returning null
+export interface DirectApiResult {
+  data: any;
+  error: string | null;
+  httpStatus?: number;
+}
 
-  const response = await fetch(`${API_DIRECT_BASE}${endpoint}`, {
-    method: 'GET',
-    headers: {
-      'x-apisports-key': apiKey,
-    },
-  });
-  if (!response.ok) return null;
-  const data = await response.json();
-  // Check for API-level errors
-  if (data.errors && Object.keys(data.errors).length > 0) {
-    console.error('[auto-results] API errors:', data.errors);
-    return null;
+// Direct API fetch (bypasses Netlify Functions) - now returns errors instead of null
+async function directApiFetch(endpoint: string, keyInfo?: ApiKeyInfo | null): Promise<DirectApiResult> {
+  const info = keyInfo !== undefined ? keyInfo : getDirectApiKeyInfo();
+  if (!info) return { data: null, error: 'NO_API_KEY' };
+
+  const isRapidApi = info.type === 'rapidapi';
+  const baseUrl = isRapidApi ? API_RAPIDAPI_BASE : API_DIRECT_BASE;
+
+  const headers: Record<string, string> = {};
+  if (isRapidApi) {
+    headers['X-RapidAPI-Key'] = info.key;
+    headers['X-RapidAPI-Host'] = 'api-football-v1.p.rapidapi.com';
+  } else {
+    headers['x-apisports-key'] = info.key;
   }
-  return data;
+
+  try {
+    const response = await fetch(`${baseUrl}${endpoint}`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorBody = '';
+      try { errorBody = await response.text(); } catch { /* ignore */ }
+      const errorMsg = errorBody.substring(0, 300);
+
+      // If api-sports.io returns 403, try RapidAPI automatically (only for /status test)
+      if (!isRapidApi && response.status === 403 && endpoint === '/status') {
+        console.log('[auto-results] api-sports.io returned 403, trying RapidAPI...');
+        const rapidResult = await directApiFetch(endpoint, { key: info.key, type: 'rapidapi' });
+        if (rapidResult.data && !rapidResult.error) {
+          localStorage.setItem('wc2026-api-key-type', 'rapidapi');
+          return rapidResult;
+        }
+      }
+
+      // Parse the error for common messages
+      if (response.status === 403) {
+        return { data: null, error: 'SUBSCRIPTION_ERROR: المفتاح غير مفعّل أو غير مشترك في API-Football. تأكد من تفعيل الاشتراك المجاني على api-sports.io', httpStatus: 403 };
+      }
+      if (response.status === 401) {
+        return { data: null, error: 'INVALID_KEY: مفتاح API غير صحيح. تحقق من نسخ المفتاح بالكامل', httpStatus: 401 };
+      }
+      if (response.status === 429) {
+        return { data: null, error: 'RATE_LIMIT: تم تجاوز حد الطلبات (100/يوم). حاول غداً', httpStatus: 429 };
+      }
+
+      return { data: null, error: `HTTP_${response.status}: ${errorMsg}`, httpStatus: response.status };
+    }
+
+    const data = await response.json();
+    // Check for API-level errors
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      const errMsg = Object.values(data.errors).join(', ');
+      console.error('[auto-results] API errors:', errMsg);
+
+      if (errMsg.includes('not subscribed') || errMsg.includes('plan')) {
+        return { data: null, error: 'SUBSCRIPTION_ERROR: الاشتراك لا يشمل هذا API. فعّل الاشتراك المجاني على api-sports.io أو استخدم مفتاح RapidAPI', httpStatus: 403 };
+      }
+      if (errMsg.includes('season')) {
+        return { data: null, error: `SEASON_NOT_ACCESSIBLE: ${errMsg}`, httpStatus: 200 };
+      }
+
+      return { data: null, error: errMsg };
+    }
+    return { data, error: null };
+  } catch (err: any) {
+    return { data: null, error: `NETWORK_ERROR: ${err.message || 'فشل الاتصال'}` };
+  }
+}
+
+// Test API key - validates that the key works
+export async function testApiKey(key: string, keyType: ApiKeyType = 'apisports'): Promise<{ valid: boolean; error: string | null; accountInfo?: any; detectedType?: ApiKeyType }> {
+  const isRapidApi = keyType === 'rapidapi';
+  const baseUrl = isRapidApi ? API_RAPIDAPI_BASE : API_DIRECT_BASE;
+
+  const headers: Record<string, string> = {};
+  if (isRapidApi) {
+    headers['X-RapidAPI-Key'] = key;
+    headers['X-RapidAPI-Host'] = 'api-football-v1.p.rapidapi.com';
+  } else {
+    headers['x-apisports-key'] = key;
+  }
+
+  try {
+    const response = await fetch(`${baseUrl}/status`, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      // If api-sports.io fails, auto-try RapidAPI
+      if (!isRapidApi && (response.status === 403 || response.status === 401)) {
+        const rapidTest = await testApiKey(key, 'rapidapi');
+        if (rapidTest.valid) {
+          rapidTest.detectedType = 'rapidapi';
+          return rapidTest;
+        }
+      }
+      if (response.status === 403) return { valid: false, error: 'المفتاح غير مشترك في API-Football. فعّل الاشتراك المجاني على api-sports.io' };
+      if (response.status === 401) return { valid: false, error: 'مفتاح API غير صحيح' };
+      return { valid: false, error: `خطأ HTTP ${response.status}` };
+    }
+
+    const data = await response.json();
+    if (data.errors && Object.keys(data.errors).length > 0) {
+      const errMsg = Object.values(data.errors).join(', ');
+      // If api-sports.io has subscription error, try RapidAPI
+      if (!isRapidApi && (errMsg.includes('not subscribed') || errMsg.includes('plan'))) {
+        const rapidTest = await testApiKey(key, 'rapidapi');
+        if (rapidTest.valid) {
+          rapidTest.detectedType = 'rapidapi';
+          return rapidTest;
+        }
+      }
+      return { valid: false, error: errMsg };
+    }
+
+    const account = data.response?.account;
+    const subscription = data.response?.subscription;
+    const requests = data.response?.requests;
+
+    return {
+      valid: true,
+      error: null,
+      accountInfo: {
+        firstName: account?.firstname,
+        lastName: account?.lastname,
+        plan: subscription?.plan,
+        endDate: subscription?.end,
+        requestsToday: requests?.current,
+        requestsLimit: requests?.limit_day,
+      },
+    };
+  } catch (err: any) {
+    return { valid: false, error: `فشل الاتصال: ${err.message}` };
+  }
+}
+
+// Save API key to localStorage
+export function saveApiKey(key: string, keyType: ApiKeyType = 'apisports'): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('wc2026-api-key', key);
+  localStorage.setItem('wc2026-api-key-type', keyType);
+}
+
+// Remove API key from localStorage
+export function removeApiKey(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('wc2026-api-key');
+  localStorage.removeItem('wc2026-api-key-type');
+}
+
+// Get current API key info
+export function getApiKeyInfo(): ApiKeyInfo | null {
+  return getDirectApiKeyInfo();
 }
 
 function mapDirectFixture(fixture: any): APIFixture {
@@ -252,24 +414,41 @@ function mapDirectFixture(fixture: any): APIFixture {
   };
 }
 
-// Fetch results - tries Netlify Functions first, always falls back to direct API
+// Fetch results - tries direct API first, then Netlify Functions
 export async function fetchResults(date?: string, includeStandings?: boolean): Promise<APIResponse> {
-  // Try direct API first (more reliable than Netlify Functions for free plan)
-  const apiKey = getDirectApiKey();
-  if (apiKey) {
+  const apiKeyInfo = getDirectApiKeyInfo();
+  if (apiKeyInfo) {
     try {
-      // IMPORTANT: Free plans don't support league+season=2026 together.
-      // Use date-only query, then filter for World Cup (league=1) locally
       let endpoint: string;
       if (date) {
         endpoint = `/fixtures?date=${date}`;
       } else {
         endpoint = `/fixtures?league=1&season=2026`;
       }
-      const data = await directApiFetch(endpoint);
-      if (data) {
+      const result = await directApiFetch(endpoint);
+
+      // If direct API returned an error, propagate it
+      if (result.error) {
+        if (result.error === 'NO_API_KEY') {
+          // Fall through to Netlify Functions
+        } else if (result.error.startsWith('SUBSCRIPTION_ERROR')) {
+          return { success: false, count: 0, fixtures: [], error: 'SUBSCRIPTION_ERROR', message: result.error.replace('SUBSCRIPTION_ERROR: ', '') };
+        } else if (result.error.startsWith('INVALID_KEY')) {
+          return { success: false, count: 0, fixtures: [], error: 'INVALID_KEY', message: result.error.replace('INVALID_KEY: ', '') };
+        } else if (result.error.startsWith('RATE_LIMIT')) {
+          return { success: false, count: 0, fixtures: [], error: 'RATE_LIMIT', message: result.error.replace('RATE_LIMIT: ', '') };
+        } else if (result.error.startsWith('SEASON_NOT_ACCESSIBLE')) {
+          return { success: false, count: 0, fixtures: [], error: 'SEASON_NOT_ACCESSIBLE', message: result.error.replace('SEASON_NOT_ACCESSIBLE: ', '') };
+        } else if (result.error.startsWith('NETWORK_ERROR')) {
+          // Fall through to try Netlify Functions
+        } else {
+          return { success: false, count: 0, fixtures: [], error: 'API_ERROR', message: result.error };
+        }
+      }
+
+      if (result.data) {
         // If date-based query, filter for World Cup league only
-        let rawFixtures = data.response || [];
+        let rawFixtures = result.data.response || [];
         if (date && rawFixtures.length > 0) {
           rawFixtures = rawFixtures.filter((f: any) => f.league?.id === 1);
         }
@@ -279,9 +458,9 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
         let standings = null;
         if (includeStandings) {
           try {
-            const standingsData = await directApiFetch('/standings?league=1&season=2026');
-            if (standingsData?.response?.[0]?.league) {
-              const league = standingsData.response[0].league;
+            const standingsResult = await directApiFetch('/standings?league=1&season=2026');
+            if (standingsResult.data?.response?.[0]?.league) {
+              const league = standingsResult.data.response[0].league;
               standings = {
                 league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
                 groups: (league.standings || []).map((group: any) => group.map((team: any) => ({
@@ -328,28 +507,37 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
 
 // Fetch live matches - tries direct API first, then Netlify Functions
 export async function fetchLiveMatches(): Promise<APIResponse> {
-  // Try direct API first (more reliable than Netlify Functions for free plan)
-  const apiKey = getDirectApiKey();
-  if (apiKey) {
+  const apiKeyInfo = getDirectApiKeyInfo();
+  if (apiKeyInfo) {
     try {
-      // Free plans don't support live=all with season=2026
-      // Use date-based query and filter for live World Cup matches
       const now = new Date();
       const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
-      const data = await directApiFetch(`/fixtures?date=${today}`);
-      if (data) {
+      const result = await directApiFetch(`/fixtures?date=${today}`);
+
+      // If direct API returned an error, propagate it
+      if (result.error && result.error !== 'NO_API_KEY') {
+        if (result.error.startsWith('SUBSCRIPTION_ERROR')) {
+          return { success: false, count: 0, fixtures: [], error: 'SUBSCRIPTION_ERROR', message: result.error.replace('SUBSCRIPTION_ERROR: ', '') };
+        }
+        if (result.error.startsWith('INVALID_KEY')) {
+          return { success: false, count: 0, fixtures: [], error: 'INVALID_KEY', message: result.error.replace('INVALID_KEY: ', '') };
+        }
+        // For other errors, fall through to Netlify Functions
+      }
+
+      if (result.data) {
         // Filter for World Cup league AND live status
         const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
-        const wcLive = (data.response || [])
+        const wcLive = (result.data.response || [])
           .filter((f: any) => f.league?.id === 1 && liveStatuses.includes(f.fixture?.status?.short))
           .map(mapDirectFixture);
 
         // Also fetch events for each live fixture (up to 5)
         for (const fixture of wcLive.slice(0, 5)) {
           try {
-            const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
-            if (eventsData?.response) {
-              fixture.events = eventsData.response.map((e: any) => ({
+            const eventsResult = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
+            if (eventsResult.data?.response) {
+              fixture.events = eventsResult.data.response.map((e: any) => ({
                 time: { elapsed: e.time.elapsed, extra: e.time.extra },
                 type: e.type,
                 detail: e.detail,
@@ -379,7 +567,7 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
     }
   } catch { /* Fall through */ }
 
-  if (!apiKey) return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED' };
+  if (!apiKeyInfo) return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED' };
   return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
 }
 
@@ -396,20 +584,23 @@ export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureD
   } catch { /* Fall through */ }
 
   // Direct API fallback
-  const apiKey = getDirectApiKey();
-  if (!apiKey) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'API_KEY_NOT_CONFIGURED' };
+  const apiKeyInfo = getDirectApiKeyInfo();
+  if (!apiKeyInfo) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'API_KEY_NOT_CONFIGURED' };
 
   try {
-    const fixtureData = await directApiFetch(`/fixtures?id=${fixtureId}`);
-    if (!fixtureData?.response?.[0]) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'NOT_FOUND' };
+    const fixtureResult = await directApiFetch(`/fixtures?id=${fixtureId}`);
+    if (fixtureResult.error) {
+      return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: fixtureResult.error };
+    }
+    if (!fixtureResult.data?.response?.[0]) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'NOT_FOUND' };
 
-    const fixture = mapDirectFixture(fixtureData.response[0]);
+    const fixture = mapDirectFixture(fixtureResult.data.response[0]);
 
     // Fetch events
     try {
-      const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixtureId}`);
-      if (eventsData?.response) {
-        fixture.events = eventsData.response.map((e: any) => ({
+      const eventsResult = await directApiFetch(`/fixtures/events?fixture=${fixtureId}`);
+      if (eventsResult.data?.response) {
+        fixture.events = eventsResult.data.response.map((e: any) => ({
           time: { elapsed: e.time.elapsed, extra: e.time.extra },
           type: e.type, detail: e.detail,
           team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
@@ -422,9 +613,9 @@ export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureD
 
     // Fetch lineups
     try {
-      const lineupsData = await directApiFetch(`/fixtures/lineups?fixture=${fixtureId}`);
-      if (lineupsData?.response) {
-        fixture.lineups = lineupsData.response.map((l: any) => ({
+      const lineupsResult = await directApiFetch(`/fixtures/lineups?fixture=${fixtureId}`);
+      if (lineupsResult.data?.response) {
+        fixture.lineups = lineupsResult.data.response.map((l: any) => ({
           team: { name: l.team.name, id: l.team.id, logo: l.team.logo },
           formation: l.formation,
           startXI: l.startXI.map((p: any) => ({ player: { name: p.player.name, number: p.player.number, pos: p.player.pos, grid: p.player.grid } })),
@@ -436,9 +627,9 @@ export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureD
 
     // Fetch statistics
     try {
-      const statsData = await directApiFetch(`/fixtures/statistics?fixture=${fixtureId}`);
-      if (statsData?.response) {
-        fixture.statistics = statsData.response.map((s: any) => ({
+      const statsResult = await directApiFetch(`/fixtures/statistics?fixture=${fixtureId}`);
+      if (statsResult.data?.response) {
+        fixture.statistics = statsResult.data.response.map((s: any) => ({
           team: { name: s.team.name, id: s.team.id, logo: s.team.logo },
           statistics: s.statistics.map((st: any) => ({ type: st.type, value: st.value })),
         }));

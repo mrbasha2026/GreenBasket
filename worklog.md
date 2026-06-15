@@ -40,3 +40,28 @@ Stage Summary:
 - Trophy image displays correctly on knockout page
 - Footer shows SpeadySoft copyright
 - PWA manifest and service worker are present
+---
+Task ID: 2
+Agent: Main Agent
+Task: Add match start notification feature
+
+Work Log:
+- Created `/home/z/my-project/src/hooks/useMatchNotifications.ts` - custom hook for browser notifications
+- Hook manages: permission request, localStorage persistence, setTimeout scheduling
+- Notifications fire 5 minutes before match and at match start time
+- Uses Web Notification API with RTL Arabic content
+- Updated MatchCard.tsx to add Bell/BellRing icon button in header
+- Added isNotifSubscribed and onToggleNotif props to MatchCard
+- Updated page.tsx to integrate useMatchNotifications hook
+- Added notification status indicator in navigation bar (bell icon + count)
+- Added "تفعيل الإشعارات" button when permission not yet granted
+- All MatchCard instances across all tabs now support notifications
+- Build successful with no errors
+
+Stage Summary:
+- Users can click bell icon on any match card to enable notifications
+- Notifications show 5 min before match: "⏰ مباراة X ضد Y ستبدأ بعد 5 دقائق"
+- Notifications show at match start: "⚽ بدأت المباراة! X ضد Y"
+- Subscriptions persist in localStorage across page loads
+- Notification count shown in nav bar when active
+- Auto-cleanup: subscriptions removed after match starts

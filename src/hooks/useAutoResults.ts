@@ -15,6 +15,13 @@ const VENUE_TZ_OFFSETS: Record<string, number> = {
   'Seattle Stadium': -7, 'Toronto Stadium': -4, 'BC Place Vancouver': -7,
 };
 
+// Polling intervals
+const FULL_FETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const LIVE_FETCH_INTERVAL = 60 * 1000; // 60 seconds
+const ERROR_BACKOFF_BASE = 2 * 60 * 1000; // 2 minutes initial backoff on error
+const MAX_CONSECUTIVE_ERRORS = 5;
+const MIN_SUCCESS_BEFORE_LIVE = 1; // Need at least 1 successful fetch before live polling
+
 function getMatchUTCDate(date: string, time: string, venue: string): Date | null {
   const venueOffset = VENUE_TZ_OFFSETS[venue];
   if (venueOffset === undefined) return null;
@@ -89,8 +96,12 @@ export function useAutoResults() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const liveCheckRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(false);
+  const isFetchingRef = useRef(false); // Use ref to prevent concurrent fetches
+  const consecutiveErrorsRef = useRef(0);
+  const successfulFetchesRef = useRef(0);
   const previousEventsRef = useRef<Record<string, string>>({}); // eventHash → '1'
   const previousScoresRef = useRef<Record<number, { home: number; away: number; status: string }>>({});
+  const lastFullFetchRef = useRef<number>(0); // Timestamp of last full fetch
 
   // Check for new events and send notifications
   const checkAndNotifyNewEvents = useCallback((newEventsMap: Record<number, MatchEvent[]>) => {
@@ -110,7 +121,7 @@ export function useAutoResults() {
         if (previousEventsRef.current[eventHash]) continue;
         previousEventsRef.current[eventHash] = '1';
 
-        // Only notify for goals, red cards, and match start
+        // Only notify for goals, red cards
         if (event.type === 'Goal') {
           const goalType = event.detail === 'Penalty' ? '(ركلة جزاء)' : event.detail === 'Own Goal' ? '(هدف عكسي)' : '';
           const teamSide = event.team.name === match.team1 || event.team.name.includes(match.team1) ? team1Ar : team2Ar;
@@ -194,28 +205,50 @@ export function useAutoResults() {
     []
   );
 
-  // Fetch and process results
+  // Fetch and process results - WITH ERROR BACKOFF AND CONCURRENCY GUARD
   const fetchAndProcess = useCallback(async () => {
-    if (isFetching) return;
+    // GUARD: Prevent concurrent fetches using ref (not zustand state which may be stale)
+    if (isFetchingRef.current) return;
+
+    // GUARD: Don't fetch more often than every 30 seconds
+    const now = Date.now();
+    if (now - lastFullFetchRef.current < 30 * 1000) return;
+
+    // GUARD: If too many consecutive errors, apply exponential backoff
+    if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
+      const backoffTime = ERROR_BACKOFF_BASE * Math.pow(2, consecutiveErrorsRef.current - MAX_CONSECUTIVE_ERRORS);
+      if (now - (lastFullFetchRef.current || 0) < backoffTime) return;
+    }
+
+    isFetchingRef.current = true;
     setFetchState(true, null, null);
 
     try {
-      const now = new Date();
-      const saudiDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+      const currentDate = new Date();
+      const saudiDate = currentDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
       const response = await fetchResults(saudiDate, true);
 
       if (response.error === 'API_KEY_NOT_CONFIGURED') {
+        consecutiveErrorsRef.current++;
         setFetchState(false, 'مفتاح API غير مُعد', null);
         return;
       }
       if (response.error === 'INVALID_RESPONSE' || response.error === 'NETWORK_ERROR' || response.error === 'API_ERROR') {
-        setFetchState(false, 'لا يمكن الاتصال بالخادم', null);
+        consecutiveErrorsRef.current++;
+        // Show the actual error message from the API if available
+        const errorMsg = response.message || 'لا يمكن الاتصال بالخادم';
+        setFetchState(false, errorMsg, null);
         return;
       }
 
+      // Success - reset error counter
+      consecutiveErrorsRef.current = 0;
+      successfulFetchesRef.current++;
+      lastFullFetchRef.current = Date.now();
+
       if (response.success && response.fixtures.length > 0) {
         const processed = processFixtures(response.fixtures);
-        const autoResults: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }> = {};
+        const autoResultsMap: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }> = {};
         const liveStatuses: Record<number, string> = {};
         const liveScoreMap: Record<number, LiveScore> = {};
         const eventsMap: Record<number, MatchEvent[]> = {};
@@ -225,7 +258,7 @@ export function useAutoResults() {
 
         for (const [matchIdStr, data] of Object.entries(processed)) {
           const matchId = parseInt(matchIdStr);
-          if (isMatchFinished(data.status as MatchStatusAPI)) autoResults[matchId] = data.result;
+          if (isMatchFinished(data.status as MatchStatusAPI)) autoResultsMap[matchId] = data.result;
           if (isMatchLive(data.status as MatchStatusAPI)) {
             liveStatuses[matchId] = data.status;
             liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
@@ -236,7 +269,7 @@ export function useAutoResults() {
           if (data.fixture.statistics?.length) statsMap[matchId] = data.fixture.statistics;
         }
 
-        if (Object.keys(autoResults).length) setAutoResults(autoResults);
+        if (Object.keys(autoResultsMap).length) setAutoResults(autoResultsMap);
         setLiveMatchStatuses(liveStatuses);
         setLiveScores(liveScoreMap);
         if (Object.keys(eventsMap).length) { setMatchEvents(eventsMap); checkAndNotifyNewEvents(eventsMap); }
@@ -251,20 +284,34 @@ export function useAutoResults() {
       if (response.standings) setApiStandings(response.standings);
       setFetchState(false, null, Date.now());
     } catch (error) {
+      consecutiveErrorsRef.current++;
       setFetchState(false, 'فشل في جلب النتائج', null);
+    } finally {
+      isFetchingRef.current = false;
     }
-  }, [isFetching, setAutoResults, setFetchState, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiStandings, setApiFixtureIds, checkAndNotifyNewEvents, checkAndNotifyScoreChange]);
+  }, [setAutoResults, setFetchState, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiStandings, setApiFixtureIds, checkAndNotifyNewEvents, checkAndNotifyScoreChange]);
 
-  // Fetch live matches (with events for goal notifications)
+  // Fetch live matches (with events for goal notifications) - WITH CONCURRENCY GUARD
   const fetchLive = useCallback(async () => {
+    // Don't live-poll if we haven't had a successful full fetch yet
+    if (successfulFetchesRef.current < MIN_SUCCESS_BEFORE_LIVE) return;
+    if (isFetchingRef.current) return;
+
+    isFetchingRef.current = true;
     try {
       const response = await fetchLiveMatches();
-      if (response.error) return;
+      if (response.error) {
+        consecutiveErrorsRef.current++;
+        return;
+      }
       if (!response.success || !response.fixtures.length) return;
+
+      // Success - reset error counter
+      consecutiveErrorsRef.current = 0;
 
       const processed = processFixtures(response.fixtures);
       const liveStatuses: Record<number, string> = {};
-      const autoResults: Record<number, any> = {};
+      const autoResultsMap: Record<number, any> = {};
       const liveScoreMap: Record<number, LiveScore> = {};
       const eventsMap: Record<number, MatchEvent[]> = {};
       const lineupsMap: Record<number, MatchLineup[]> = {};
@@ -273,7 +320,7 @@ export function useAutoResults() {
 
       for (const [matchIdStr, data] of Object.entries(processed)) {
         const matchId = parseInt(matchIdStr);
-        if (isMatchFinished(data.status as MatchStatusAPI)) autoResults[matchId] = data.result;
+        if (isMatchFinished(data.status as MatchStatusAPI)) autoResultsMap[matchId] = data.result;
         liveStatuses[matchId] = data.status;
         fixtureIdMap[matchId] = data.fixture.id;
         if (isMatchLive(data.status as MatchStatusAPI)) liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
@@ -282,7 +329,7 @@ export function useAutoResults() {
         if (data.fixture.statistics?.length) statsMap[matchId] = data.fixture.statistics;
       }
 
-      if (Object.keys(autoResults).length) setAutoResults(autoResults);
+      if (Object.keys(autoResultsMap).length) setAutoResults(autoResultsMap);
       setLiveMatchStatuses(liveStatuses);
       setLiveScores(liveScoreMap);
       if (Object.keys(eventsMap).length) { setMatchEvents(eventsMap); checkAndNotifyNewEvents(eventsMap); }
@@ -293,6 +340,9 @@ export function useAutoResults() {
       // Check for score changes
       if (Object.keys(liveScoreMap).length) checkAndNotifyScoreChange(liveScoreMap);
     } catch { /* Silent */ }
+    finally {
+      isFetchingRef.current = false;
+    }
   }, [setAutoResults, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiFixtureIds, checkAndNotifyNewEvents, checkAndNotifyScoreChange]);
 
   // Auto-enable and start fetching on mount - ALWAYS runs
@@ -308,18 +358,23 @@ export function useAutoResults() {
     // Always run if enabled (default true)
     if (!autoResultsEnabled) return;
 
-    // Initial fetch
-    fetchAndProcess();
+    // Initial fetch with a small delay to avoid race conditions on mount
+    const initialTimer = setTimeout(() => {
+      fetchAndProcess();
+    }, 1500);
 
     // Periodic fetch every 5 minutes
-    intervalRef.current = setInterval(() => fetchAndProcess(), 5 * 60 * 1000);
+    intervalRef.current = setInterval(() => {
+      fetchAndProcess();
+    }, FULL_FETCH_INTERVAL);
 
     // Live check every 60 seconds when matches are active
     liveCheckRef.current = setInterval(() => {
       if (hasActiveOrUpcomingMatches()) fetchLive();
-    }, 60 * 1000);
+    }, LIVE_FETCH_INTERVAL);
 
     return () => {
+      if (initialTimer) clearTimeout(initialTimer);
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (liveCheckRef.current) clearInterval(liveCheckRef.current);
     };

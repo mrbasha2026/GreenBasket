@@ -64,15 +64,32 @@ function mapFixture(fixture) {
   };
 }
 
-// Fetch with error handling
+// Fetch with error handling - returns { data, error } for better diagnostics
 async function apiFetch(url, apiKey) {
-  const response = await fetch(url, { method: 'GET', headers: makeHeaders(apiKey) });
-  if (!response.ok) {
+  try {
+    const response = await fetch(url, { method: 'GET', headers: makeHeaders(apiKey) });
     const text = await response.text();
-    console.error('API-Football error:', response.status, text.substring(0, 200));
-    return null;
+    if (!response.ok) {
+      console.error('API-Football error:', response.status, text.substring(0, 500));
+      return { data: null, error: `HTTP_${response.status}: ${text.substring(0, 200)}` };
+    }
+    try {
+      const json = JSON.parse(text);
+      // Check for API-level errors (rate limits, etc)
+      if (json.errors && Object.keys(json.errors).length > 0) {
+        const errMsg = Object.values(json.errors).join(', ');
+        console.error('API-Football API error:', errMsg);
+        return { data: null, error: errMsg };
+      }
+      return { data: json, error: null };
+    } catch (parseErr) {
+      console.error('API-Football parse error:', text.substring(0, 200));
+      return { data: null, error: 'INVALID_JSON' };
+    }
+  } catch (fetchErr) {
+    console.error('API-Football fetch error:', fetchErr.message);
+    return { data: null, error: fetchErr.message };
   }
-  return response.json();
 }
 
 exports.handler = async (event) => {
@@ -94,19 +111,20 @@ exports.handler = async (event) => {
       const result = { success: true, fixture: null, events: [], lineups: [], statistics: [] };
 
       // Fetch fixture details
-      const fixtureData = await apiFetch(`${API_BASE}/fixtures?id=${fixtureId}`, apiKey);
-      if (fixtureData?.response?.[0]) {
-        result.fixture = mapFixture(fixtureData.response[0]);
+      const fixtureRes = await apiFetch(`${API_BASE}/fixtures?id=${fixtureId}`, apiKey);
+      if (fixtureRes.error) return errorResponse('API_ERROR', `خطأ من API: ${fixtureRes.error}`);
+      if (fixtureRes.data?.response?.[0]) {
+        result.fixture = mapFixture(fixtureRes.data.response[0]);
       }
 
       // Fetch events (goals, cards, substitutions)
       if (include.includes('events') || include.length === 0 || (include.length === 1 && include[0] === '')) {
-        const eventsData = await apiFetch(`${API_BASE}/fixtures/events?fixture=${fixtureId}`, apiKey);
-        if (eventsData?.response) {
-          result.events = eventsData.response.map(e => ({
+        const eventsRes = await apiFetch(`${API_BASE}/fixtures/events?fixture=${fixtureId}`, apiKey);
+        if (eventsRes.data?.response) {
+          result.events = eventsRes.data.response.map(e => ({
             time: { elapsed: e.time.elapsed, extra: e.time.extra },
-            type: e.type,       // Goal, Card, subst
-            detail: e.detail,   // Normal Goal, Own Goal, Penalty, Yellow Card, Red Card, etc.
+            type: e.type,
+            detail: e.detail,
             team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
             player: { name: e.player.name, id: e.player.id },
             assist: { name: e.assist.name, id: e.assist.id },
@@ -117,9 +135,9 @@ exports.handler = async (event) => {
 
       // Fetch lineups
       if (include.includes('lineups') || include.length === 0 || (include.length === 1 && include[0] === '')) {
-        const lineupsData = await apiFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, apiKey);
-        if (lineupsData?.response) {
-          result.lineups = lineupsData.response.map(l => ({
+        const lineupsRes = await apiFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, apiKey);
+        if (lineupsRes.data?.response) {
+          result.lineups = lineupsRes.data.response.map(l => ({
             team: { name: l.team.name, id: l.team.id, logo: l.team.logo, colors: l.team.colors },
             formation: l.formation,
             startXI: l.startXI.map(p => ({
@@ -135,12 +153,12 @@ exports.handler = async (event) => {
 
       // Fetch match statistics
       if (include.includes('statistics') || include.length === 0 || (include.length === 1 && include[0] === '')) {
-        const statsData = await apiFetch(`${API_BASE}/fixtures/statistics?fixture=${fixtureId}`, apiKey);
-        if (statsData?.response) {
-          result.statistics = statsData.response.map(s => ({
+        const statsRes = await apiFetch(`${API_BASE}/fixtures/statistics?fixture=${fixtureId}`, apiKey);
+        if (statsRes.data?.response) {
+          result.statistics = statsRes.data.response.map(s => ({
             team: { name: s.team.name, id: s.team.id, logo: s.team.logo },
             statistics: s.statistics.map(st => ({
-              type: st.type,    // Shots on Goal, Ball Possession, etc.
+              type: st.type,
               value: st.value,
             })),
           }));
@@ -158,27 +176,28 @@ exports.handler = async (event) => {
     let url = `${API_BASE}/fixtures?league=${leagueId}&season=${season}`;
     if (date) url += `&date=${date}`;
 
-    const data = await apiFetch(url, apiKey);
-    if (!data) return errorResponse('API_ERROR', 'خطأ من API');
+    const mainRes = await apiFetch(url, apiKey);
+    if (mainRes.error) return errorResponse('API_ERROR', `خطأ من API: ${mainRes.error}`);
+    if (!mainRes.data) return errorResponse('API_ERROR', 'لا توجد بيانات من API');
 
-    const fixtures = (data.response || []).map(mapFixture);
+    const fixtures = (mainRes.data.response || []).map(mapFixture);
 
     // Fetch standings if requested
     let standings = null;
     if (include.includes('standings')) {
-      const standingsData = await apiFetch(`${API_BASE}/standings?league=${leagueId}&season=${season}`, apiKey);
-      if (standingsData?.response?.[0]?.league) {
-        const league = standingsData.response[0].league;
+      const standingsRes = await apiFetch(`${API_BASE}/standings?league=${leagueId}&season=${season}`, apiKey);
+      if (standingsRes.data?.response?.[0]?.league) {
+        const league = standingsRes.data.response[0].league;
         standings = {
           league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
           groups: (league.standings || []).map(group => group.map(team => ({
             rank: team.rank,
             team: { name: team.team.name, id: team.team.id, logo: team.team.logo },
             points: team.points,
-            all: team.all,        // { played, win, draw, lose, goals: { for, against } }
-            form: team.form,      // e.g. "WWDLW"
+            all: team.all,
+            form: team.form,
             goalsDiff: team.goalsDiff,
-            description: team.description, // e.g. "Promotion - Final Tournament"
+            description: team.description,
           }))),
         };
       }

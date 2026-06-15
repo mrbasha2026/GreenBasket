@@ -258,7 +258,11 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (response.ok) {
       const data = await safeParseJSON<APIResponse>(response);
-      if (data && data.success) return data;
+      if (data) {
+        // Return the response from Netlify function (whether success or error)
+        // This way the caller sees the real error message from the API
+        if (data.success || data.error) return data;
+      }
     }
   } catch { /* Fall through to direct API */ }
 
@@ -312,7 +316,7 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
     const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (response.ok) {
       const data = await safeParseJSON<APIResponse>(response);
-      if (data && data.success) return data;
+      if (data && (data.success || data.error)) return data;
     }
   } catch { /* Fall through */ }
 

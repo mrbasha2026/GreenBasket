@@ -91,7 +91,7 @@ function resolveTeamRefForCard(
 }
 
 export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
-  const { results, favoriteMatches, toggleFavoriteMatch } = useWC2026Store();
+  const { results, favoriteMatches, toggleFavoriteMatch, matchEvents } = useWC2026Store();
 
   // Calculate standings for resolving knockout team refs - MUST be before any early return (React Hooks rule)
   const standings = useMemo(() => calculateGroupStandings(results), [results]);
@@ -246,6 +246,23 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
           </div>
         </div>
       </div>
+
+      {/* API Events - goal scorers */}
+      {matchEvents[matchId] && matchEvents[matchId].filter(e => e.type === 'Goal').length > 0 && (
+        <div className="px-3 py-1.5 border-t border-border/10 bg-[#00A651]/5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {matchEvents[matchId].filter(e => e.type === 'Goal').map((e, i) => (
+              <span key={i} className="text-[10px] flex items-center gap-0.5">
+                <span>⚽</span>
+                <span className="font-bold text-[#00A651]">{e.player.name}</span>
+                <span className="text-muted-foreground">{e.time.elapsed}&apos;</span>
+                {e.detail === 'Penalty' && <span className="text-amber-500">(ج)</span>}
+                {e.detail === 'Own Goal' && <span className="text-red-400">(ع)</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Footer - time, date and venue */}
       <div className="px-3 py-1.5 bg-muted/30 border-t border-border/20">

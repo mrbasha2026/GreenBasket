@@ -1,0 +1,661 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useMemo } from 'react';
+     4→import { MATCHES, TEAMS, GROUP_NAMES_AR, ROUND_NAMES_AR, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } from '@/lib/wc2026-data';
+     5→import { formatMatchSaudiDateAr, formatMatchLocalTime, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
+     6→import { useWC2026Store } from '@/store/wc2026-store';
+     7→import { TeamFlag } from './TeamFlag';
+     8→import { Card } from '@/components/ui/card';
+     9→import { Badge } from '@/components/ui/badge';
+    10→import { Clock, Calendar, MapPin, Trophy, Activity } from 'lucide-react';
+    11→
+    12→// Venue timezone offsets
+    13→const VENUE_TZ_OFFSETS: Record<string, number> = {
+    14→  'Mexico City Stadium': -5,
+    15→  'Estadio Guadalajara': -5,
+    16→  'Estadio Monterrey': -5,
+    17→  'Boston Stadium': -4,
+    18→  'New York New Jersey Stadium': -4,
+    19→  'Philadelphia Stadium': -4,
+    20→  'Miami Stadium': -4,
+    21→  'Atlanta Stadium': -4,
+    22→  'Houston Stadium': -5,
+    23→  'Dallas Stadium': -5,
+    24→  'Kansas City Stadium': -5,
+    25→  'Los Angeles Stadium': -7,
+    26→  'San Francisco Bay Area Stadium': -7,
+    27→  'Seattle Stadium': -7,
+    28→  'Toronto Stadium': -4,
+    29→  'BC Place Vancouver': -7,
+    30→};
+    31→
+    32→function getMatchUTCDate(date: string, time: string, venue: string): Date | null {
+    33→  const venueOffset = VENUE_TZ_OFFSETS[venue];
+    34→  if (venueOffset === undefined) return null;
+    35→  try {
+    36→    const [hours, minutes] = time.split(':').map(Number);
+    37→    const utcHours = hours - venueOffset;
+    38→    return new Date(Date.UTC(
+    39→      parseInt(date.substring(0, 4)),
+    40→      parseInt(date.substring(5, 7)) - 1,
+    41→      parseInt(date.substring(8, 10)),
+    42→      utcHours,
+    43→      minutes,
+    44→      0
+    45→    ));
+    46→  } catch {
+    47→    return null;
+    48→  }
+    49→}
+    50→
+    51→const toArabicDigits = (n: number | string): string => {
+    52→  return String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)]);
+    53→};
+    54→
+    55→// Format current Saudi time
+    56→function formatSaudiTimeNow(): string {
+    57→  const now = new Date();
+    58→  const hourStr = now.toLocaleTimeString('en-US', {
+    59→    hour: 'numeric',
+    60→    minute: '2-digit',
+    61→    second: '2-digit',
+    62→    hour12: true,
+    63→    timeZone: 'Asia/Riyadh',
+    64→  });
+    65→  const match12 = hourStr.match(/^(\d+):(\d+):(\d+)\s*(AM|PM)$/i);
+    66→  if (match12) {
+    67→    const hours = parseInt(match12[1]);
+    68→    const minutes = match12[2];
+    69→    const seconds = match12[3];
+    70→    const isPM = match12[4].toUpperCase() === 'PM';
+    71→    const period = isPM ? 'م' : 'ص';
+    72→    return `${toArabicDigits(hours)}:${toArabicDigits(minutes)}:${toArabicDigits(seconds)} ${period}`;
+    73→  }
+    74→  return hourStr;
+    75→}
+    76→
+    77→function formatSaudiDateNow(): string {
+    78→  const now = new Date();
+    79→  const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    80→  const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    81→
+    82→  // Get Saudi time components
+    83→  const saudiDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+    84→  const dayName = days[saudiDate.getDay()];
+    85→  const day = saudiDate.getDate();
+    86→  const month = months[saudiDate.getMonth()];
+    87→  const year = saudiDate.getFullYear();
+    88→
+    89→  return `${dayName} ${toArabicDigits(day)} ${month} ${toArabicDigits(year)}`;
+    90→}
+    91→
+    92→// Resolve team ref for knockout matches
+    93→function resolveTeamRef(
+    94→  ref: string,
+    95→  standings: ReturnType<typeof calculateGroupStandings>,
+    96→  thirdPlaceRanking: ReturnType<typeof calculateThirdPlaceRanking>,
+    97→  results: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }>,
+    98→): string | null {
+    99→  const winnerMatch = ref.match(/^1([A-L])$/);
+   100→  if (winnerMatch) {
+   101→    const group = winnerMatch[1];
+   102→    const gs = standings[group];
+   103→    if (gs && gs.length > 0 && gs[0].played > 0) return gs[0].team;
+   104→    return null;
+   105→  }
+   106→  const runnerUpMatch = ref.match(/^2([A-L])$/);
+   107→  if (runnerUpMatch) {
+   108→    const group = runnerUpMatch[1];
+   109→    const gs = standings[group];
+   110→    if (gs && gs.length > 1 && gs[1].played > 0) return gs[1].team;
+   111→    return null;
+   112→  }
+   113→  const thirdPlaceRefMatch = ref.match(/^3(.+)$/);
+   114→  if (thirdPlaceRefMatch) {
+   115→    const eligibleGroups = THIRD_PLACE_ELIGIBLE_GROUPS[ref];
+   116→    if (!eligibleGroups) return null;
+   117→    const usedGroups = new Set<string>();
+   118→    const slots = ['3ABCDf','3CDFGH','3CEfHI','3EHIJK','3BEFIJ','3AEHIJ','3EFGIJ','3DEIJL'];
+   119→    for (const slot of slots) {
+   120→      const slotEligible = THIRD_PLACE_ELIGIBLE_GROUPS[slot] || [];
+   121→      for (const tp of thirdPlaceRanking) {
+   122→        if (slotEligible.includes(tp.group) && !usedGroups.has(tp.group) && tp.points > 0) {
+   123→          usedGroups.add(tp.group);
+   124→          if (slot === ref) return tp.team;
+   125→          break;
+   126→        }
+   127→      }
+   128→    }
+   129→    return null;
+   130→  }
+   131→  const winnerOfMatch = ref.match(/^W(\d+)$/);
+   132→  if (winnerOfMatch) {
+   133→    const matchId = parseInt(winnerOfMatch[1]);
+   134→    const r = results[matchId];
+   135→    if (!r) return null;
+   136→    const m = MATCHES.find(x => x.id === matchId);
+   137→    if (!m) return null;
+   138→    const t1 = resolveTeamRef(m.team1Ref || m.team1, standings, thirdPlaceRanking, results) || m.team1;
+   139→    const t2 = resolveTeamRef(m.team2Ref || m.team2, standings, thirdPlaceRanking, results) || m.team2;
+   140→    if (r.homeGoals > r.awayGoals) return t1;
+   141→    if (r.awayGoals > r.homeGoals) return t2;
+   142→    if (r.homePenalties !== undefined && r.awayPenalties !== undefined) {
+   143→      if (r.homePenalties > r.awayPenalties) return t1;
+   144→      if (r.awayPenalties > r.homePenalties) return t2;
+   145→    }
+   146→    return null;
+   147→  }
+   148→  const loserOfMatch = ref.match(/^L(\d+)$/);
+   149→  if (loserOfMatch) {
+   150→    const matchId = parseInt(loserOfMatch[1]);
+   151→    const r = results[matchId];
+   152→    if (!r) return null;
+   153→    const m = MATCHES.find(x => x.id === matchId);
+   154→    if (!m) return null;
+   155→    const t1 = resolveTeamRef(m.team1Ref || m.team1, standings, thirdPlaceRanking, results) || m.team1;
+   156→    const t2 = resolveTeamRef(m.team2Ref || m.team2, standings, thirdPlaceRanking, results) || m.team2;
+   157→    if (r.homeGoals < r.awayGoals) return t1;
+   158→    if (r.awayGoals < r.homeGoals) return t2;
+   159→    if (r.homePenalties !== undefined && r.awayPenalties !== undefined) {
+   160→      if (r.homePenalties < r.awayPenalties) return t1;
+   161→      if (r.awayPenalties < r.homePenalties) return t2;
+   162→    }
+   163→    return null;
+   164→  }
+   165→  return null;
+   166→}
+   167→
+   168→interface LiveMatchInfo {
+   169→  match: typeof MATCHES[0];
+   170→  utcDate: Date;
+   171→  saudiDate: string;
+   172→  status: 'live' | 'upcoming' | 'finished';
+   173→}
+   174→
+   175→export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) => void }) {
+   176→  const { results, liveMatchStatuses, liveScores } = useWC2026Store();
+   177→  const [currentTime, setCurrentTime] = useState('');
+   178→
+   179→  const standings = useMemo(() => calculateGroupStandings(results), [results]);
+   180→  const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
+   181→
+   182→  // Update current time every second
+   183→  useEffect(() => {
+   184→    const updateTime = () => {
+   185→      setCurrentTime(formatSaudiTimeNow());
+   186→    };
+   187→    updateTime();
+   188→    const interval = setInterval(updateTime, 1000);
+   189→    return () => clearInterval(interval);
+   190→  }, []);
+   191→
+   192→  // Get today's matches based on Saudi time
+   193→  const todayMatches = useMemo(() => {
+   194→    const now = new Date();
+   195→    // Get today's date in Saudi timezone
+   196→    const saudiDateString = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' }); // YYYY-MM-DD format
+   197→
+   198→    const matches: LiveMatchInfo[] = [];
+   199→
+   200→    for (const match of MATCHES) {
+   201→      if (!match.time) continue;
+   202→      const utcDate = getMatchUTCDate(match.date, match.time, match.venue);
+   203→      if (!utcDate) continue;
+   204→
+   205→      // Get the Saudi date for this match
+   206→      const matchSaudiDate = new Date(utcDate.toLocaleString('en-US', { timeZone: 'Asia/Riyadh' }));
+   207→      const matchSaudiDateString = matchSaudiDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+   208→
+   209→      // Check if match is today, was today, or within a range
+   210→      if (matchSaudiDateString === saudiDateString) {
+   211→        const matchTime = utcDate.getTime();
+   212→        const nowTime = Date.now();
+   213→        const matchEndTime = matchTime + (2 * 60 * 60 * 1000); // Assume ~2 hours for a match
+   214→        const hasResult = !!results[match.id];
+   215→
+   216→        let status: 'live' | 'upcoming' | 'finished';
+   217→        const apiStatus = liveMatchStatuses[match.id];
+   218→        if (hasResult || nowTime > matchEndTime || apiStatus === 'FT' || apiStatus === 'AET' || apiStatus === 'PEN') {
+   219→          status = 'finished';
+   220→        } else if (nowTime >= matchTime || (apiStatus && ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE'].includes(apiStatus))) {
+   221→          status = 'live';
+   222→        } else {
+   223→          status = 'upcoming';
+   224→        }
+   225→
+   226→        matches.push({
+   227→          match,
+   228→          utcDate,
+   229→          saudiDate: matchSaudiDateString,
+   230→          status,
+   231→        });
+   232→      }
+   233→    }
+   234→
+   235→    // Sort by time
+   236→    matches.sort((a, b) => a.utcDate.getTime() - b.utcDate.getTime());
+   237→    return matches;
+   238→  }, [results, liveMatchStatuses, liveScores]);
+   239→
+   240→  // Get next few upcoming matches (even if not today)
+   241→  const upcomingMatches = useMemo(() => {
+   242→    const now = new Date();
+   243→    const matches: LiveMatchInfo[] = [];
+   244→
+   245→    for (const match of MATCHES) {
+   246→      if (!match.time) continue;
+   247→      const utcDate = getMatchUTCDate(match.date, match.time, match.venue);
+   248→      if (!utcDate) continue;
+   249→
+   250→      if (utcDate > now && !results[match.id]) {
+   251→        matches.push({
+   252→          match,
+   253→          utcDate,
+   254→          saudiDate: match.date,
+   255→          status: 'upcoming',
+   256→        });
+   257→      }
+   258→    }
+   259→
+   260→    matches.sort((a, b) => a.utcDate.getTime() - b.utcDate.getTime());
+   261→    return matches.slice(0, 6); // Next 6 matches
+   262→  }, [results, liveMatchStatuses]);
+   263→
+   264→  const liveCount = todayMatches.filter(m => m.status === 'live').length;
+   265→  const upcomingTodayCount = todayMatches.filter(m => m.status === 'upcoming').length;
+   266→  const finishedTodayCount = todayMatches.filter(m => m.status === 'finished').length;
+   267→
+   268→  return (
+   269→    <div className="space-y-6">
+   270→      {/* Current Time Display */}
+   271→      <Card className="p-5 border-border/50 bg-gradient-to-l from-[#002868]/5 to-[#00A651]/5 backdrop-blur-sm">
+   272→        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+   273→          <div className="flex items-center gap-3">
+   274→            <div className="w-12 h-12 rounded-full bg-[#002868]/10 flex items-center justify-center">
+   275→              <Clock className="w-6 h-6 text-[#002868] dark:text-blue-400" />
+   276→            </div>
+   277→            <div>
+   278→              <p className="text-sm text-muted-foreground font-medium">التوقيت الحالي (السعودية)</p>
+   279→              <p className="text-2xl font-extrabold text-[#002868] dark:text-blue-400 tabular-nums" dir="ltr">
+   280→                {currentTime}
+   281→              </p>
+   282→            </div>
+   283→          </div>
+   284→          <div className="text-center sm:text-left">
+   285→            <div className="flex items-center gap-2">
+   286→              <Calendar className="w-4 h-4 text-muted-foreground" />
+   287→              <p className="text-sm font-bold text-muted-foreground">{formatSaudiDateNow()}</p>
+   288→            </div>
+   289→          </div>
+   290→        </div>
+   291→
+   292→        {/* Today's Stats */}
+   293→        {todayMatches.length > 0 && (
+   294→          <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-border/30">
+   295→            {liveCount > 0 && (
+   296→              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
+   297→                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+   298→                <span className="text-xs font-bold text-red-500">{toArabicDigits(liveCount)} مباشر</span>
+   299→              </div>
+   300→            )}
+   301→            {upcomingTodayCount > 0 && (
+   302→              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20">
+   303→                <Clock className="w-3 h-3 text-[#FFD700]" />
+   304→                <span className="text-xs font-bold text-[#FFD700]">{toArabicDigits(upcomingTodayCount)} قادمة</span>
+   305→              </div>
+   306→            )}
+   307→            {finishedTodayCount > 0 && (
+   308→              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#00A651]/10 border border-[#00A651]/20">
+   309→                <span className="text-xs font-bold text-[#00A651]">{toArabicDigits(finishedTodayCount)} انتهت</span>
+   310→              </div>
+   311→            )}
+   312→          </div>
+   313→        )}
+   314→      </Card>
+   315→
+   316→      {/* Today's Matches */}
+   317→      {todayMatches.length > 0 ? (
+   318→        <div>
+   319→          <div className="flex items-center gap-3 mb-4">
+   320→            <div className="w-1.5 h-7 bg-red-500 rounded-full" />
+   321→            <h3 className="text-lg font-bold text-[#002868] dark:text-blue-400">مباريات اليوم</h3>
+   322→            <Badge variant="secondary" className="bg-red-500/10 text-red-500">
+   323→              {toArabicDigits(todayMatches.length)} مباراة
+   324→            </Badge>
+   325→          </div>
+   326→
+   327→          <div className="space-y-3">
+   328→            {todayMatches.map(({ match, utcDate, status }) => {
+   329→              const result = results[match.id];
+   330→              const isKnockout = match.round !== 'group';
+   331→
+   332→              // Resolve knockout team refs
+   333→              const team1Resolved = isKnockout && match.team1Ref
+   334→                ? resolveTeamRef(match.team1Ref, standings, thirdPlaceRanking, results)
+   335→                : null;
+   336→              const team2Resolved = isKnockout && match.team2Ref
+   337→                ? resolveTeamRef(match.team2Ref, standings, thirdPlaceRanking, results)
+   338→                : null;
+   339→
+   340→              const team1Key = team1Resolved || match.team1;
+   341→              const team2Key = team2Resolved || match.team2;
+   342→              const team1Name = isKnockout
+   343→                ? (team1Resolved ? (TEAMS[team1Resolved]?.nameAr || team1Resolved) : getTeamRefDisplayName(match.team1Ref || match.team1))
+   344→                : (TEAMS[match.team1]?.nameAr || match.team1);
+   345→              const team2Name = isKnockout
+   346→                ? (team2Resolved ? (TEAMS[team2Resolved]?.nameAr || team2Resolved) : getTeamRefDisplayName(match.team2Ref || match.team2))
+   347→                : (TEAMS[match.team2]?.nameAr || match.team2);
+   348→
+   349→              const team1Data = TEAMS[team1Key];
+   350→              const team2Data = TEAMS[team2Key];
+   351→              const isTeam1Resolved = !isKnockout || !!team1Resolved;
+   352→              const isTeam2Resolved = !isKnockout || !!team2Resolved;
+   353→
+   354→              const isDraw = result ? (result.homeGoals === result.awayGoals && (result.homePenalties === undefined || result.awayPenalties === undefined || result.homePenalties === result.awayPenalties)) : false;
+   355→              const isTeam1Winner = result ? (
+   356→                result.homeGoals > result.awayGoals ||
+   357→                (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.homePenalties > result.awayPenalties)
+   358→              ) : false;
+   359→              const isTeam2Winner = result ? (
+   360→                result.awayGoals > result.homeGoals ||
+   361→                (result.homeGoals === result.awayGoals && result.homePenalties !== undefined && result.awayPenalties !== undefined && result.awayPenalties > result.homePenalties)
+   362→              ) : false;
+   363→
+   364→              return (
+   365→                <Card
+   366→                  key={match.id}
+   367→                  className={`overflow-hidden border-border/50 cursor-pointer hover:shadow-lg transition-all ${
+   368→                    status === 'live' ? 'border-red-500/40 shadow-red-500/10 shadow-md' :
+   369→                    status === 'upcoming' ? 'border-[#FFD700]/30' :
+   370→                    'opacity-70'
+   371→                  }`}
+   372→                  onClick={() => onMatchClick(match.id)}
+   373→                >
+   374→                  {/* Match status header */}
+   375→                  <div className={`flex items-center justify-between px-4 py-2 ${
+   376→                    status === 'live' ? 'bg-red-500/10 border-b border-red-500/20' :
+   377→                    status === 'upcoming' ? 'bg-[#FFD700]/10 border-b border-[#FFD700]/20' :
+   378→                    'bg-muted/30 border-b border-border/20'
+   379→                  }`}>
+   380→                    <div className="flex items-center gap-2">
+   381→                      {status === 'live' && (
+   382→                        <span className="flex items-center gap-1.5">
+   383→                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+   384→                          <span className="text-xs font-bold text-red-500">مباشر</span>
+   385→                          {liveMatchStatuses[match.id] && (
+   386→                            <span className="text-[10px] text-red-400 bg-red-500/10 px-1 rounded">
+   387→                              {liveMatchStatuses[match.id] === '1H' ? 'الشوط الأول' :
+   388→                               liveMatchStatuses[match.id] === 'HT' ? 'استراحة' :
+   389→                               liveMatchStatuses[match.id] === '2H' ? 'الشوط الثاني' :
+   390→                               liveMatchStatuses[match.id] === 'ET' ? 'إضافي' :
+   391→                               liveMatchStatuses[match.id] === 'P' ? 'ركلات جزاء' :
+   392→                               liveMatchStatuses[match.id]}
+   393→                            </span>
+   394→                          )}
+   395→                          {liveScores[match.id]?.elapsed !== null && liveScores[match.id]?.elapsed !== undefined && (
+   396→                            <span className="text-[10px] text-red-300 bg-red-500/10 px-1.5 py-0.5 rounded font-bold">
+   397→                              {toArabicDigits(liveScores[match.id].elapsed!)}'
+   398→                            </span>
+   399→                          )}
+   400→                        </span>
+   401→                      )}
+   402→                      {status === 'upcoming' && (
+   403→                        <span className="flex items-center gap-1.5">
+   404→                          <Clock className="w-3 h-3 text-[#FFD700]" />
+   405→                          <span className="text-xs font-bold text-[#FFD700]">قادمة</span>
+   406→                        </span>
+   407→                      )}
+   408→                      {status === 'finished' && (
+   409→                        <span className="text-xs font-bold text-[#00A651]">انتهت</span>
+   410→                      )}
+   411→                      <span className="text-xs text-muted-foreground">مباراة {toArabicDigits(match.id)}</span>
+   412→                    </div>
+   413→                    <div className="flex items-center gap-1">
+   414→                      {match.group ? (
+   415→                        <Badge variant="secondary" className="text-xs bg-[#002868]/10 text-[#002868] border-0">
+   416→                          {GROUP_NAMES_AR[match.group]}
+   417→                        </Badge>
+   418→                      ) : (
+   419→                        <Badge variant="secondary" className="text-xs bg-[#E31837]/10 text-[#E31837] border-0">
+   420→                          {ROUND_NAMES_AR[match.round]}
+   421→                        </Badge>
+   422→                      )}
+   423→                    </div>
+   424→                  </div>
+   425→
+   426→                  {/* Teams and score */}
+   427→                  <div className="px-4 py-4">
+   428→                    <div className="flex items-center justify-between gap-3">
+   429→                      {/* Team 1 */}
+   430→                      <div className="flex items-center gap-2 flex-1 min-w-0">
+   431→                        {isTeam1Resolved && team1Data ? (
+   432→                          <TeamFlag teamName={team1Key} size="lg" />
+   433→                        ) : (
+   434→                          <Trophy className="w-8 h-8 text-muted-foreground/50" />
+   435→                        )}
+   436→                        <span className={`text-sm font-bold truncate ${
+   437→                          !isTeam1Resolved ? 'text-muted-foreground italic' : ''
+   438→                        } ${isTeam1Winner ? 'text-[#00A651]' : ''} ${
+   439→                          result && !isTeam1Winner && !isDraw ? 'text-[#E31837]' : ''
+   440→                        } ${isDraw ? 'text-[#D4A017]' : ''}`}>
+   441→                          {team1Name}
+   442→                        </span>
+   443→                      </div>
+   444→
+   445→                      {/* Score */}
+   446→                      <div className="flex items-center gap-2 flex-shrink-0">
+   447→                        {result ? (
+   448→                          <div className="flex items-center gap-1">
+   449→                            <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white font-extrabold text-lg ${
+   450→                              isTeam1Winner ? 'bg-[#00A651]' : isDraw ? 'bg-[#D4A017]' : 'bg-[#E31837]/80'
+   451→                            }`}>
+   452→                              {toArabicDigits(result.homeGoals)}
+   453→                            </span>
+   454→                            <span className="text-muted-foreground text-sm font-bold">-</span>
+   455→                            <span className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white font-extrabold text-lg ${
+   456→                              isTeam2Winner ? 'bg-[#00A651]' : isDraw ? 'bg-[#D4A017]' : 'bg-[#E31837]/80'
+   457→                            }`}>
+   458→                              {toArabicDigits(result.awayGoals)}
+   459→                            </span>
+   460→                            {result.homePenalties !== undefined && result.awayPenalties !== undefined && (
+   461→                              <span className="text-xs text-amber-600 font-medium mr-1">
+   462→                                ({toArabicDigits(result.homePenalties)}-{toArabicDigits(result.awayPenalties)} ترجيح)
+   463→                              </span>
+   464→                            )}
+   465→                          </div>
+   466→                        ) : liveScores[match.id] && status === 'live' ? (
+   467→                          /* Live score from API */
+   468→                          <div className="flex flex-col items-center gap-0.5">
+   469→                            <div className="flex items-center gap-1">
+   470→                              <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-red-500 text-white font-extrabold text-lg animate-pulse">
+   471→                                {toArabicDigits(liveScores[match.id].homeGoals)}
+   472→                              </span>
+   473→                              <span className="text-red-400 text-sm font-bold">-</span>
+   474→                              <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-red-500 text-white font-extrabold text-lg animate-pulse">
+   475→                                {toArabicDigits(liveScores[match.id].awayGoals)}
+   476→                              </span>
+   477→                            </div>
+   478→                            {liveScores[match.id].homePenalties !== undefined && liveScores[match.id].awayPenalties !== undefined && (
+   479→                              <span className="text-[10px] text-amber-500 font-medium">
+   480→                                ({toArabicDigits(liveScores[match.id].homePenalties!)}-{toArabicDigits(liveScores[match.id].awayPenalties!)} ترجيح)
+   481→                              </span>
+   482→                            )}
+   483→                            {liveScores[match.id].elapsed !== null && (
+   484→                              <span className="text-[10px] text-red-400 font-bold">
+   485→                                ⏱ {toArabicDigits(liveScores[match.id].elapsed!)}'
+   486→                              </span>
+   487→                            )}
+   488→                          </div>
+   489→                        ) : (
+   490→                          <div className="flex items-center gap-1">
+   491→                            <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-sm font-bold ${
+   492→                              status === 'live' ? 'bg-red-500/10 text-red-500 animate-pulse' :
+   493→                              'bg-muted/50 text-muted-foreground'
+   494→                            }`}>
+   495→                              {status === 'live' ? 'جارية' : formatMatchLocalTime(match.date, match.time || '', match.venue)}
+   496→                            </span>
+   497→                          </div>
+   498→                        )}
+   499→                      </div>
+   500→
+   501→                      {/* Team 2 */}
+   502→                      <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+   503→                        <span className={`text-sm font-bold truncate ${
+   504→                          !isTeam2Resolved ? 'text-muted-foreground italic' : ''
+   505→                        } ${isTeam2Winner ? 'text-[#00A651]' : ''} ${
+   506→                          result && !isTeam2Winner && !isDraw ? 'text-[#E31837]' : ''
+   507→                        } ${isDraw ? 'text-[#D4A017]' : ''}`}>
+   508→                          {team2Name}
+   509→                        </span>
+   510→                        {isTeam2Resolved && team2Data ? (
+   511→                          <TeamFlag teamName={team2Key} size="lg" />
+   512→                        ) : (
+   513→                          <Trophy className="w-8 h-8 text-muted-foreground/50" />
+   514→                        )}
+   515→                      </div>
+   516→                    </div>
+   517→                  </div>
+   518→
+   519→                  {/* Footer */}
+   520→                  <div className="px-4 py-2 bg-muted/20 border-t border-border/10 flex items-center justify-between text-xs text-muted-foreground">
+   521→                    <div className="flex items-center gap-2">
+   522→                      <MapPin className="w-3 h-3" />
+   523→                      <span>{match.venueAr}</span>
+   524→                    </div>
+   525→                    <span>{formatMatchSaudiDateAr(match.date, match.time || '', match.venue)}</span>
+   526→                  </div>
+   527→                </Card>
+   528→              );
+   529→            })}
+   530→          </div>
+   531→        </div>
+   532→      ) : (
+   533→        <Card className="p-8 border-dashed border-2 border-border/50 text-center">
+   534→          <div className="flex flex-col items-center gap-3">
+   535→            <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center">
+   536→              <Activity className="w-8 h-8 text-muted-foreground/50" />
+   537→            </div>
+   538→            <h3 className="text-lg font-bold text-muted-foreground">لا توجد مباريات اليوم</h3>
+   539→            <p className="text-sm text-muted-foreground/70 max-w-md">
+   540→              لا توجد مباريات مجدولة في هذا اليوم. تصفح المباريات القادمة أدناه.
+   541→            </p>
+   542→          </div>
+   543→        </Card>
+   544→      )}
+   545→
+   546→      {/* Next Upcoming Matches */}
+   547→      {upcomingMatches.length > 0 && (
+   548→        <div>
+   549→          <div className="flex items-center gap-3 mb-4">
+   550→            <div className="w-1.5 h-7 bg-[#FFD700] rounded-full" />
+   551→            <h3 className="text-lg font-bold text-[#002868] dark:text-blue-400">المباريات القادمة</h3>
+   552→            <Badge variant="secondary" className="bg-[#FFD700]/10 text-[#D4A017]">
+   553→              أقرب {toArabicDigits(upcomingMatches.length)} مباريات
+   554→            </Badge>
+   555→          </div>
+   556→
+   557→          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   558→            {upcomingMatches.map(({ match, utcDate }) => {
+   559→              const isKnockout = match.round !== 'group';
+   560→              const team1Resolved = isKnockout && match.team1Ref
+   561→                ? resolveTeamRef(match.team1Ref, standings, thirdPlaceRanking, results)
+   562→                : null;
+   563→              const team2Resolved = isKnockout && match.team2Ref
+   564→                ? resolveTeamRef(match.team2Ref, standings, thirdPlaceRanking, results)
+   565→                : null;
+   566→
+   567→              const team1Key = team1Resolved || match.team1;
+   568→              const team2Key = team2Resolved || match.team2;
+   569→              const team1Name = isKnockout
+   570→                ? (team1Resolved ? (TEAMS[team1Resolved]?.nameAr || team1Resolved) : getTeamRefDisplayName(match.team1Ref || match.team1))
+   571→                : (TEAMS[match.team1]?.nameAr || match.team1);
+   572→              const team2Name = isKnockout
+   573→                ? (team2Resolved ? (TEAMS[team2Resolved]?.nameAr || team2Resolved) : getTeamRefDisplayName(match.team2Ref || match.team2))
+   574→                : (TEAMS[match.team2]?.nameAr || match.team2);
+   575→
+   576→              const team1Data = TEAMS[team1Key];
+   577→              const team2Data = TEAMS[team2Key];
+   578→              const isTeam1Resolved = !isKnockout || !!team1Resolved;
+   579→              const isTeam2Resolved = !isKnockout || !!team2Resolved;
+   580→
+   581→              // Calculate time until match
+   582→              const now = Date.now();
+   583→              const diffMs = utcDate.getTime() - now;
+   584→              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+   585→              const diffHours = Math.floor((diffMs / (1000 * 60 * 60)) % 24);
+   586→              const diffMins = Math.floor((diffMs / (1000 * 60)) % 60);
+   587→
+   588→              let timeUntil = '';
+   589→              if (diffDays > 0) {
+   590→                timeUntil = `بعد ${toArabicDigits(diffDays)} يوم و ${toArabicDigits(diffHours)} ساعة`;
+   591→              } else if (diffHours > 0) {
+   592→                timeUntil = `بعد ${toArabicDigits(diffHours)} ساعة و ${toArabicDigits(diffMins)} دقيقة`;
+   593→              } else {
+   594→                timeUntil = `بعد ${toArabicDigits(diffMins)} دقيقة`;
+   595→              }
+   596→
+   597→              return (
+   598→                <Card
+   599→                  key={match.id}
+   600→                  className="p-4 border-border/50 cursor-pointer hover:shadow-md transition-all bg-card/80"
+   601→                  onClick={() => onMatchClick(match.id)}
+   602→                >
+   603→                  <div className="flex items-center justify-between mb-3">
+   604→                    {match.group ? (
+   605→                      <Badge variant="secondary" className="text-xs bg-[#002868]/10 text-[#002868] border-0">
+   606→                        {GROUP_NAMES_AR[match.group]}
+   607→                      </Badge>
+   608→                    ) : (
+   609→                      <Badge variant="secondary" className="text-xs bg-[#E31837]/10 text-[#E31837] border-0">
+   610→                        {ROUND_NAMES_AR[match.round]}
+   611→                      </Badge>
+   612→                    )}
+   613→                    <span className="text-xs text-muted-foreground">مباراة {toArabicDigits(match.id)}</span>
+   614→                  </div>
+   615→
+   616→                  <div className="flex items-center justify-between gap-2 mb-3">
+   617→                    <div className="flex items-center gap-2 flex-1 min-w-0">
+   618→                      {isTeam1Resolved && team1Data ? (
+   619→                        <TeamFlag teamName={team1Key} size="md" />
+   620→                      ) : (
+   621→                        <Trophy className="w-5 h-5 text-muted-foreground/50" />
+   622→                      )}
+   623→                      <span className={`text-xs font-bold truncate ${!isTeam1Resolved ? 'text-muted-foreground italic' : ''}`}>
+   624→                        {team1Name}
+   625→                      </span>
+   626→                    </div>
+   627→                    <span className="text-[#FFD700] text-xs font-bold">ضد</span>
+   628→                    <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+   629→                      <span className={`text-xs font-bold truncate ${!isTeam2Resolved ? 'text-muted-foreground italic' : ''}`}>
+   630→                        {team2Name}
+   631→                      </span>
+   632→                      {isTeam2Resolved && team2Data ? (
+   633→                        <TeamFlag teamName={team2Key} size="md" />
+   634→                      ) : (
+   635→                        <Trophy className="w-5 h-5 text-muted-foreground/50" />
+   636→                      )}
+   637→                    </div>
+   638→                  </div>
+   639→
+   640→                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/20">
+   641→                    <div className="flex items-center gap-1">
+   642→                      <Clock className="w-3 h-3" />
+   643→                      <span className="font-bold text-[#002868] dark:text-blue-400">{formatMatchLocalTime(match.date, match.time || '', match.venue)}</span>
+   644→                    </div>
+   645→                    <span className="text-[#FFD700] font-medium">{timeUntil}</span>
+   646→                  </div>
+   647→
+   648→                  <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+   649→                    <MapPin className="w-3 h-3" />
+   650→                    <span>{match.venueAr}</span>
+   651→                  </div>
+   652→                </Card>
+   653→              );
+   654→            })}
+   655→          </div>
+   656→        </div>
+   657→      )}
+   658→    </div>
+   659→  );
+   660→}
+   661→

@@ -1,14 +1,18 @@
 // FIFA World Cup 2026 Zustand Store
 import { create } from 'zustand';
 import { MatchResult } from '@/lib/wc2026-logic';
+import type { MatchEvent, MatchLineup, MatchStats, APIStandings } from '@/lib/auto-results';
 
 export interface LiveScore {
   homeGoals: number;
   awayGoals: number;
-  status: string; // 1H, HT, 2H, ET, BT, P, etc.
-  elapsed: number | null; // minute of match
+  status: string;
+  elapsed: number | null;
   homePenalties?: number;
   awayPenalties?: number;
+  scoreHalftimeHome?: number | null;
+  scoreHalftimeAway?: number | null;
+  referee?: string;
 }
 
 interface WC2026State {
@@ -25,8 +29,15 @@ interface WC2026State {
   lastFetchTime: number | null;
   fetchError: string | null;
   isFetching: boolean;
-  liveMatchStatuses: Record<number, string>; // matchId → status (1H, HT, 2H, FT, etc.)
-  liveScores: Record<number, LiveScore>; // matchId → current live score
+  liveMatchStatuses: Record<number, string>;
+  liveScores: Record<number, LiveScore>;
+
+  // API-enhanced data
+  matchEvents: Record<number, MatchEvent[]>;
+  matchLineups: Record<number, MatchLineup[]>;
+  matchStats: Record<number, MatchStats[]>;
+  apiStandings: APIStandings | null;
+  apiFixtureIds: Record<number, number>; // ourMatchId → apiFixtureId
 
   // Actions
   setMatchResult: (matchId: number, result: MatchResult) => void;
@@ -44,6 +55,12 @@ interface WC2026State {
   setFetchState: (isFetching: boolean, error: string | null, lastFetchTime: number | null) => void;
   setLiveMatchStatuses: (statuses: Record<number, string>) => void;
   setLiveScores: (scores: Record<number, LiveScore>) => void;
+  setMatchEvents: (events: Record<number, MatchEvent[]>) => void;
+  setMatchLineups: (lineups: Record<number, MatchLineup[]>) => void;
+  setMatchStats: (stats: Record<number, MatchStats[]>) => void;
+  setApiStandings: (standings: APIStandings | null) => void;
+  setApiFixtureIds: (ids: Record<number, number>) => void;
+  setMatchDetail: (matchId: number, data: { events?: MatchEvent[]; lineups?: MatchLineup[]; statistics?: MatchStats[] }) => void;
 }
 
 const STORAGE_KEY = 'wc2026-results';
@@ -55,88 +72,56 @@ function loadResults(): Record<number, MatchResult> {
   if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch {
-    // Ignore parse errors
-  }
+    if (stored) return JSON.parse(stored);
+  } catch { /* Ignore */ }
   return {};
 }
 
 function saveResults(results: Record<number, MatchResult>) {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
-  } catch {
-    // Ignore storage errors
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(results)); } catch { /* Ignore */ }
 }
 
 function loadPredictions(): Record<number, MatchResult> {
   if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem(PREDICTIONS_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch {
-    // Ignore parse errors
-  }
+    if (stored) return JSON.parse(stored);
+  } catch { /* Ignore */ }
   return {};
 }
 
 function savePredictions(predictions: Record<number, MatchResult>) {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(PREDICTIONS_KEY, JSON.stringify(predictions));
-  } catch {
-    // Ignore storage errors
-  }
+  try { localStorage.setItem(PREDICTIONS_KEY, JSON.stringify(predictions)); } catch { /* Ignore */ }
 }
 
 function loadFavoriteTeams(): Set<string> {
   if (typeof window === 'undefined') return new Set();
   try {
     const stored = localStorage.getItem(FAVORITES_KEY);
-    if (stored) {
-      return new Set(JSON.parse(stored));
-    }
-  } catch {
-    // Ignore parse errors
-  }
+    if (stored) return new Set(JSON.parse(stored));
+  } catch { /* Ignore */ }
   return new Set();
 }
 
 function saveFavoriteTeams(favorites: Set<string>) {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
-  } catch {
-    // Ignore storage errors
-  }
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites])); } catch { /* Ignore */ }
 }
 
 function loadFavoriteMatches(): Set<number> {
   if (typeof window === 'undefined') return new Set();
   try {
     const stored = localStorage.getItem(FAV_MATCHES_KEY);
-    if (stored) {
-      return new Set(JSON.parse(stored));
-    }
-  } catch {
-    // Ignore parse errors
-  }
+    if (stored) return new Set(JSON.parse(stored));
+  } catch { /* Ignore */ }
   return new Set();
 }
 
 function saveFavoriteMatches(favorites: Set<number>) {
   if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify([...favorites]));
-  } catch {
-    // Ignore storage errors
-  }
+  try { localStorage.setItem(FAV_MATCHES_KEY, JSON.stringify([...favorites])); } catch { /* Ignore */ }
 }
 
 const AUTO_RESULTS_KEY = 'wc2026-auto-results-enabled';
@@ -155,6 +140,11 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   isFetching: false,
   liveMatchStatuses: {},
   liveScores: {},
+  matchEvents: {},
+  matchLineups: {},
+  matchStats: {},
+  apiStandings: null,
+  apiFixtureIds: {},
 
   setMatchResult: (matchId, result) =>
     set((state) => {
@@ -188,22 +178,16 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   toggleFavoriteTeam: (teamName) =>
     set((state) => {
       const newFavorites = new Set(state.favoriteTeams);
-      if (newFavorites.has(teamName)) {
-        newFavorites.delete(teamName);
-      } else {
-        newFavorites.add(teamName);
-      }
+      if (newFavorites.has(teamName)) newFavorites.delete(teamName);
+      else newFavorites.add(teamName);
       saveFavoriteTeams(newFavorites);
       return { favoriteTeams: newFavorites };
     }),
   toggleFavoriteMatch: (matchId) =>
     set((state) => {
       const newFavorites = new Set(state.favoriteMatches);
-      if (newFavorites.has(matchId)) {
-        newFavorites.delete(matchId);
-      } else {
-        newFavorites.add(matchId);
-      }
+      if (newFavorites.has(matchId)) newFavorites.delete(matchId);
+      else newFavorites.add(matchId);
       saveFavoriteMatches(newFavorites);
       return { favoriteMatches: newFavorites };
     }),
@@ -222,7 +206,6 @@ export const useWC2026Store = create<WC2026State>((set) => ({
     }),
   setAutoResults: (autoResults) =>
     set((state) => {
-      // Merge auto-results with existing results (auto-results take priority for finished matches)
       const newResults = { ...state.results };
       for (const [matchId, result] of Object.entries(autoResults)) {
         newResults[parseInt(matchId)] = result;
@@ -242,4 +225,20 @@ export const useWC2026Store = create<WC2026State>((set) => ({
     set({ liveMatchStatuses: statuses }),
   setLiveScores: (scores) =>
     set({ liveScores: scores }),
+  setMatchEvents: (events) =>
+    set((state) => ({ matchEvents: { ...state.matchEvents, ...events } })),
+  setMatchLineups: (lineups) =>
+    set((state) => ({ matchLineups: { ...state.matchLineups, ...lineups } })),
+  setMatchStats: (stats) =>
+    set((state) => ({ matchStats: { ...state.matchStats, ...stats } })),
+  setApiStandings: (standings) =>
+    set({ apiStandings: standings }),
+  setApiFixtureIds: (ids) =>
+    set((state) => ({ apiFixtureIds: { ...state.apiFixtureIds, ...ids } })),
+  setMatchDetail: (matchId, data) =>
+    set((state) => ({
+      matchEvents: data.events ? { ...state.matchEvents, [matchId]: data.events } : state.matchEvents,
+      matchLineups: data.lineups ? { ...state.matchLineups, [matchId]: data.lineups } : state.matchLineups,
+      matchStats: data.statistics ? { ...state.matchStats, [matchId]: data.statistics } : state.matchStats,
+    })),
 }));

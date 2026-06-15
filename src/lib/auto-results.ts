@@ -288,72 +288,94 @@ async function directApiFetch(endpoint: string, keyInfo?: ApiKeyInfo | null): Pr
 }
 
 // Test API key - validates that the key works
+// Uses Netlify Function as proxy (since api-sports.io blocks CORS from browsers)
 export async function testApiKey(key: string, keyType: ApiKeyType = 'apisports'): Promise<{ valid: boolean; error: string | null; accountInfo?: any; detectedType?: ApiKeyType }> {
-  const isRapidApi = keyType === 'rapidapi';
-  const baseUrl = isRapidApi ? API_RAPIDAPI_BASE : API_DIRECT_BASE;
-
-  const headers: Record<string, string> = {};
-  if (isRapidApi) {
-    headers['X-RapidAPI-Key'] = key;
-    headers['X-RapidAPI-Host'] = 'api-football-v1.p.rapidapi.com';
-  } else {
-    headers['x-apisports-key'] = key;
-  }
-
+  // Try Netlify Function proxy first (works for all key types, avoids CORS)
   try {
-    const response = await fetch(`${baseUrl}/status`, {
-      method: 'GET',
-      headers,
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) {
-      // If api-sports.io fails, auto-try RapidAPI
-      if (!isRapidApi && (response.status === 403 || response.status === 401)) {
-        const rapidTest = await testApiKey(key, 'rapidapi');
-        if (rapidTest.valid) {
-          rapidTest.detectedType = 'rapidapi';
-          return rapidTest;
+    const url = `/.netlify/functions/fetch-results?check=version&apiKey=${encodeURIComponent(key)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (response.ok) {
+      const data = await response.json();
+      // If the function accepted the key (keySource is 'client'), the key is at least formatted correctly
+      // Now let's try a real API call through the function to verify
+      const testUrl = `/.netlify/functions/fetch-results?date=2025-01-01&apiKey=${encodeURIComponent(key)}`;
+      const testResponse = await fetch(testUrl, { signal: AbortSignal.timeout(15000) });
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        if (testData.success) {
+          return {
+            valid: true,
+            error: null,
+            accountInfo: {
+              plan: data.keySource === 'client' ? 'API Key (مباشر)' : 'Env Var',
+              requestsToday: '—',
+              requestsLimit: '100/يوم (مجاني)',
+            },
+          };
+        }
+        if (testData.error === 'SUBSCRIPTION_ERROR' || testData.error === 'API_ERROR') {
+          return { valid: false, error: testData.message || 'المفتاح غير مشترك أو غير صحيح' };
+        }
+        if (testData.error === 'INVALID_KEY') {
+          return { valid: false, error: testData.message || 'مفتاح API غير صحيح' };
+        }
+        if (testData.error === 'RATE_LIMIT') {
+          return { valid: true, error: null, accountInfo: { plan: 'مجاني', requestsToday: '100+', requestsLimit: '100/يوم' } };
         }
       }
-      if (response.status === 403) return { valid: false, error: 'المفتاح غير مشترك في API-Football. فعّل الاشتراك المجاني على api-sports.io' };
-      if (response.status === 401) return { valid: false, error: 'مفتاح API غير صحيح' };
-      return { valid: false, error: `خطأ HTTP ${response.status}` };
     }
+  } catch { /* Fall through to direct test */ }
 
-    const data = await response.json();
-    if (data.errors && Object.keys(data.errors).length > 0) {
-      const errMsg = Object.values(data.errors).join(', ');
-      // If api-sports.io has subscription error, try RapidAPI
-      if (!isRapidApi && (errMsg.includes('not subscribed') || errMsg.includes('plan'))) {
-        const rapidTest = await testApiKey(key, 'rapidapi');
-        if (rapidTest.valid) {
-          rapidTest.detectedType = 'rapidapi';
-          return rapidTest;
-        }
-      }
-      return { valid: false, error: errMsg };
-    }
-
-    const account = data.response?.account;
-    const subscription = data.response?.subscription;
-    const requests = data.response?.requests;
-
-    return {
-      valid: true,
-      error: null,
-      accountInfo: {
-        firstName: account?.firstname,
-        lastName: account?.lastname,
-        plan: subscription?.plan,
-        endDate: subscription?.end,
-        requestsToday: requests?.current,
-        requestsLimit: requests?.limit_day,
-      },
+  // Fallback: Try direct API test (only works with RapidAPI from browser)
+  if (keyType === 'rapidapi') {
+    const isRapidApi = true;
+    const baseUrl = API_RAPIDAPI_BASE;
+    const headers: Record<string, string> = {
+      'X-RapidAPI-Key': key,
+      'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
     };
-  } catch (err: any) {
-    return { valid: false, error: `فشل الاتصال: ${err.message}` };
+
+    try {
+      const response = await fetch(`${baseUrl}/status`, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) return { valid: false, error: 'المفتاح غير مشترك في RapidAPI' };
+        if (response.status === 401) return { valid: false, error: 'مفتاح RapidAPI غير صحيح' };
+        return { valid: false, error: `خطأ HTTP ${response.status}` };
+      }
+
+      const data = await response.json();
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        return { valid: false, error: Object.values(data.errors).join(', ') };
+      }
+
+      const account = data.response?.account;
+      const subscription = data.response?.subscription;
+      const requests = data.response?.requests;
+
+      return {
+        valid: true,
+        error: null,
+        accountInfo: {
+          firstName: account?.firstname,
+          lastName: account?.lastname,
+          plan: subscription?.plan,
+          endDate: subscription?.end,
+          requestsToday: requests?.current,
+          requestsLimit: requests?.limit_day,
+        },
+      };
+    } catch (err: any) {
+      return { valid: false, error: `فشل الاتصال: ${err.message}` };
+    }
   }
+
+  // If we got here, we couldn't test the key
+  return { valid: false, error: 'لا يمكن اختبار المفتاح. تحقق من اتصال الإنترنت وحاول مرة أخرى.' };
 }
 
 // Save API key to localStorage
@@ -414,85 +436,21 @@ function mapDirectFixture(fixture: any): APIFixture {
   };
 }
 
-// Fetch results - tries direct API first, then Netlify Functions
+// Fetch results - uses Netlify Functions (with client key) to avoid CORS, falls back to direct API (RapidAPI only)
 export async function fetchResults(date?: string, includeStandings?: boolean): Promise<APIResponse> {
   const apiKeyInfo = getDirectApiKeyInfo();
-  if (apiKeyInfo) {
-    try {
-      let endpoint: string;
-      if (date) {
-        endpoint = `/fixtures?date=${date}`;
-      } else {
-        endpoint = `/fixtures?league=1&season=2026`;
-      }
-      const result = await directApiFetch(endpoint);
 
-      // If direct API returned an error, propagate it
-      if (result.error) {
-        if (result.error === 'NO_API_KEY') {
-          // Fall through to Netlify Functions
-        } else if (result.error.startsWith('SUBSCRIPTION_ERROR')) {
-          return { success: false, count: 0, fixtures: [], error: 'SUBSCRIPTION_ERROR', message: result.error.replace('SUBSCRIPTION_ERROR: ', '') };
-        } else if (result.error.startsWith('INVALID_KEY')) {
-          return { success: false, count: 0, fixtures: [], error: 'INVALID_KEY', message: result.error.replace('INVALID_KEY: ', '') };
-        } else if (result.error.startsWith('RATE_LIMIT')) {
-          return { success: false, count: 0, fixtures: [], error: 'RATE_LIMIT', message: result.error.replace('RATE_LIMIT: ', '') };
-        } else if (result.error.startsWith('SEASON_NOT_ACCESSIBLE')) {
-          return { success: false, count: 0, fixtures: [], error: 'SEASON_NOT_ACCESSIBLE', message: result.error.replace('SEASON_NOT_ACCESSIBLE: ', '') };
-        } else if (result.error.startsWith('NETWORK_ERROR')) {
-          // Fall through to try Netlify Functions
-        } else {
-          return { success: false, count: 0, fixtures: [], error: 'API_ERROR', message: result.error };
-        }
-      }
-
-      if (result.data) {
-        // If date-based query, filter for World Cup league only
-        let rawFixtures = result.data.response || [];
-        if (date && rawFixtures.length > 0) {
-          rawFixtures = rawFixtures.filter((f: any) => f.league?.id === 1);
-        }
-        const fixtures = rawFixtures.map(mapDirectFixture);
-
-        // Fetch standings if requested (may fail on free plan)
-        let standings = null;
-        if (includeStandings) {
-          try {
-            const standingsResult = await directApiFetch('/standings?league=1&season=2026');
-            if (standingsResult.data?.response?.[0]?.league) {
-              const league = standingsResult.data.response[0].league;
-              standings = {
-                league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
-                groups: (league.standings || []).map((group: any) => group.map((team: any) => ({
-                  rank: team.rank,
-                  team: { name: team.team.name, id: team.team.id, logo: team.team.logo },
-                  points: team.points,
-                  all: team.all,
-                  form: team.form,
-                  goalsDiff: team.goalsDiff,
-                  description: team.description,
-                }))),
-              };
-            }
-          } catch { /* standings not available on free plan */ }
-        }
-
-        return { success: true, count: fixtures.length, fixtures, standings };
-      }
-    } catch (error) {
-      console.error('[auto-results] Direct API fetch failed:', error);
-    }
-  }
-
-  // Try Netlify Functions as fallback
+  // PRIORITY 1: Try Netlify Functions with client-provided key (avoids CORS)
   try {
     let url = '/.netlify/functions/fetch-results';
     const params = new URLSearchParams();
     if (date) params.set('date', date);
     if (includeStandings) params.set('include', 'standings');
+    // Pass client API key to Netlify Function so it can use it server-side
+    if (apiKeyInfo) params.set('apiKey', apiKeyInfo.key);
     if (params.toString()) url += `?${params.toString()}`;
 
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (response.ok) {
       const data = await safeParseJSON<APIResponse>(response);
       if (data) {
@@ -501,53 +459,121 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
     }
   } catch { /* Fall through */ }
 
-  // No API key and no Netlify Functions
-  return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED', message: 'أضف مفتاح API-Football في الإعدادات للاتصال المباشر' };
+  // PRIORITY 2: Try direct API (only RapidAPI works from browser due to CORS)
+  if (apiKeyInfo) {
+    try {
+      // Only try direct API with RapidAPI (api-sports.io blocks CORS)
+      if (apiKeyInfo.type === 'rapidapi') {
+        let endpoint: string;
+        if (date) {
+          endpoint = `/fixtures?date=${date}`;
+        } else {
+          endpoint = `/fixtures?league=1&season=2026`;
+        }
+        const result = await directApiFetch(endpoint, apiKeyInfo);
+
+        if (result.error) {
+          if (result.error.startsWith('SUBSCRIPTION_ERROR')) {
+            return { success: false, count: 0, fixtures: [], error: 'SUBSCRIPTION_ERROR', message: result.error.replace('SUBSCRIPTION_ERROR: ', '') };
+          }
+          if (result.error.startsWith('INVALID_KEY')) {
+            return { success: false, count: 0, fixtures: [], error: 'INVALID_KEY', message: result.error.replace('INVALID_KEY: ', '') };
+          }
+          if (result.error.startsWith('RATE_LIMIT')) {
+            return { success: false, count: 0, fixtures: [], error: 'RATE_LIMIT', message: result.error.replace('RATE_LIMIT: ', '') };
+          }
+        }
+
+        if (result.data) {
+          let rawFixtures = result.data.response || [];
+          if (date && rawFixtures.length > 0) {
+            rawFixtures = rawFixtures.filter((f: any) => f.league?.id === 1);
+          }
+          const fixtures = rawFixtures.map(mapDirectFixture);
+
+          let standings = null;
+          if (includeStandings) {
+            try {
+              const standingsResult = await directApiFetch('/standings?league=1&season=2026', apiKeyInfo);
+              if (standingsResult.data?.response?.[0]?.league) {
+                const league = standingsResult.data.response[0].league;
+                standings = {
+                  league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
+                  groups: (league.standings || []).map((group: any) => group.map((team: any) => ({
+                    rank: team.rank,
+                    team: { name: team.team.name, id: team.team.id, logo: team.team.logo },
+                    points: team.points,
+                    all: team.all,
+                    form: team.form,
+                    goalsDiff: team.goalsDiff,
+                    description: team.description,
+                  }))),
+                };
+              }
+            } catch { /* standings not available */ }
+          }
+
+          return { success: true, count: fixtures.length, fixtures, standings };
+        }
+      }
+    } catch (error) {
+      console.error('[auto-results] Direct API fetch failed:', error);
+    }
+  }
+
+  return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED', message: 'أضف مفتاح API-Football في الإعدادات' };
 }
 
-// Fetch live matches - tries direct API first, then Netlify Functions
+// Fetch live matches - uses Netlify Functions (with client key) to avoid CORS
 export async function fetchLiveMatches(): Promise<APIResponse> {
   const apiKeyInfo = getDirectApiKeyInfo();
-  if (apiKeyInfo) {
+
+  // PRIORITY 1: Try Netlify Functions with client key
+  try {
+    let url = '/.netlify/functions/fetch-live?stats=true';
+    if (apiKeyInfo) url += `&apiKey=${encodeURIComponent(apiKeyInfo.key)}`;
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (response.ok) {
+      const data = await safeParseJSON<APIResponse>(response);
+      if (data && (data.success || data.error)) return data;
+    }
+  } catch { /* Fall through */ }
+
+  // PRIORITY 2: Direct API (RapidAPI only - CORS)
+  if (apiKeyInfo && apiKeyInfo.type === 'rapidapi') {
     try {
       const now = new Date();
       const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
-      const result = await directApiFetch(`/fixtures?date=${today}`);
+      const result = await directApiFetch(`/fixtures?date=${today}`, apiKeyInfo);
 
-      // If direct API returned an error, propagate it
-      if (result.error && result.error !== 'NO_API_KEY') {
-        if (result.error.startsWith('SUBSCRIPTION_ERROR')) {
-          return { success: false, count: 0, fixtures: [], error: 'SUBSCRIPTION_ERROR', message: result.error.replace('SUBSCRIPTION_ERROR: ', '') };
-        }
-        if (result.error.startsWith('INVALID_KEY')) {
-          return { success: false, count: 0, fixtures: [], error: 'INVALID_KEY', message: result.error.replace('INVALID_KEY: ', '') };
-        }
-        // For other errors, fall through to Netlify Functions
+      if (result.error && result.error.startsWith('SUBSCRIPTION_ERROR')) {
+        return { success: false, count: 0, fixtures: [], error: 'SUBSCRIPTION_ERROR', message: result.error.replace('SUBSCRIPTION_ERROR: ', '') };
+      }
+      if (result.error && result.error.startsWith('INVALID_KEY')) {
+        return { success: false, count: 0, fixtures: [], error: 'INVALID_KEY', message: result.error.replace('INVALID_KEY: ', '') };
       }
 
       if (result.data) {
-        // Filter for World Cup league AND live status
         const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
         const wcLive = (result.data.response || [])
           .filter((f: any) => f.league?.id === 1 && liveStatuses.includes(f.fixture?.status?.short))
           .map(mapDirectFixture);
 
-        // Also fetch events for each live fixture (up to 5)
         for (const fixture of wcLive.slice(0, 5)) {
           try {
-            const eventsResult = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
+            const eventsResult = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`, apiKeyInfo);
             if (eventsResult.data?.response) {
               fixture.events = eventsResult.data.response.map((e: any) => ({
                 time: { elapsed: e.time.elapsed, extra: e.time.extra },
-                type: e.type,
-                detail: e.detail,
+                type: e.type, detail: e.detail,
                 team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
                 player: { name: e.player.name, id: e.player.id },
                 assist: { name: e.assist.name, id: e.assist.id },
                 comments: e.comments,
               }));
             }
-          } catch { /* Skip events for this fixture */ }
+          } catch { /* Skip */ }
         }
 
         return { success: true, count: wcLive.length, fixtures: wcLive };
@@ -557,38 +583,31 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
     }
   }
 
-  // Try Netlify Functions as fallback
-  try {
-    const url = '/.netlify/functions/fetch-live?stats=true';
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (response.ok) {
-      const data = await safeParseJSON<APIResponse>(response);
-      if (data && (data.success || data.error)) return data;
-    }
-  } catch { /* Fall through */ }
-
   if (!apiKeyInfo) return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED' };
   return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
 }
 
-// Fetch single fixture detail - tries Netlify Functions first, falls back to direct API
+// Fetch single fixture detail - tries Netlify Functions first (with client key), falls back to direct API
 export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureDetail> {
-  // Try Netlify Functions first
+  const apiKeyInfo = getDirectApiKeyInfo();
+
+  // Try Netlify Functions first with client key
   try {
-    const url = `/.netlify/functions/fetch-results?fixture=${fixtureId}&include=events,lineups,statistics`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    let url = `/.netlify/functions/fetch-results?fixture=${fixtureId}&include=events,lineups,statistics`;
+    if (apiKeyInfo) url += `&apiKey=${encodeURIComponent(apiKeyInfo.key)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (response.ok) {
       const data = await safeParseJSON<APIFixtureDetail>(response);
       if (data && data.success) return data;
     }
   } catch { /* Fall through */ }
 
-  // Direct API fallback
-  const apiKeyInfo = getDirectApiKeyInfo();
+  // Direct API fallback (RapidAPI only due to CORS)
   if (!apiKeyInfo) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'API_KEY_NOT_CONFIGURED' };
+  if (apiKeyInfo.type !== 'rapidapi') return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'CORS_ERROR', message: 'api-sports.io لا يدعم الوصول المباشر من المتصفح. استخدم Netlify Functions.' };
 
   try {
-    const fixtureResult = await directApiFetch(`/fixtures?id=${fixtureId}`);
+    const fixtureResult = await directApiFetch(`/fixtures?id=${fixtureId}`, apiKeyInfo);
     if (fixtureResult.error) {
       return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: fixtureResult.error };
     }
@@ -598,7 +617,7 @@ export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureD
 
     // Fetch events
     try {
-      const eventsResult = await directApiFetch(`/fixtures/events?fixture=${fixtureId}`);
+      const eventsResult = await directApiFetch(`/fixtures/events?fixture=${fixtureId}`, apiKeyInfo);
       if (eventsResult.data?.response) {
         fixture.events = eventsResult.data.response.map((e: any) => ({
           time: { elapsed: e.time.elapsed, extra: e.time.extra },
@@ -613,7 +632,7 @@ export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureD
 
     // Fetch lineups
     try {
-      const lineupsResult = await directApiFetch(`/fixtures/lineups?fixture=${fixtureId}`);
+      const lineupsResult = await directApiFetch(`/fixtures/lineups?fixture=${fixtureId}`, apiKeyInfo);
       if (lineupsResult.data?.response) {
         fixture.lineups = lineupsResult.data.response.map((l: any) => ({
           team: { name: l.team.name, id: l.team.id, logo: l.team.logo },

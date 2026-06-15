@@ -91,7 +91,11 @@ async function apiFetch(url, apiKey) {
 }
 
 exports.handler = async (event) => {
-  const apiKey = process.env.API_FOOTBALL_KEY;
+  // Support API key from query parameter (client-provided) or env var
+  // Priority: client key > env var
+  const clientKey = (event.queryStringParameters || {}).apiKey;
+  const envKey = process.env.API_FOOTBALL_KEY;
+  const apiKey = clientKey || envKey;
   
   // Version check endpoint - helps debug deployment issues
   if ((event.queryStringParameters || {}).check === 'version') {
@@ -102,13 +106,14 @@ exports.handler = async (event) => {
         version: DEPLOY_VERSION,
         apiBase: API_BASE,
         keyConfigured: !!apiKey,
+        keySource: clientKey ? 'client' : (envKey ? 'env' : 'none'),
         keyPrefix: apiKey ? apiKey.substring(0, 8) + '...' : 'NONE',
       }),
     };
   }
   
   if (!apiKey) {
-    return errorResponse('API_KEY_NOT_CONFIGURED', 'مفتاح API غير مُعد. يرجى إعداد API_FOOTBALL_KEY في متغيرات بيئة Netlify.');
+    return errorResponse('API_KEY_NOT_CONFIGURED', 'مفتاح API غير مُعد. يرجى إدخال مفتاح API من الإعدادات أو إعداد API_FOOTBALL_KEY في متغيرات بيئة Netlify.');
   }
 
   try {

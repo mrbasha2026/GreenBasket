@@ -80,7 +80,10 @@ async function apiFetch(url, apiKey) {
 }
 
 exports.handler = async (event) => {
-  const apiKey = process.env.API_FOOTBALL_KEY;
+  // Support API key from query parameter (client-provided) or env var
+  const clientKey = (event.queryStringParameters || {}).apiKey;
+  const envKey = process.env.API_FOOTBALL_KEY;
+  const apiKey = clientKey || envKey;
   if (!apiKey) return errorResponse('API_KEY_NOT_CONFIGURED', 'مفتاح API غير مُعد');
 
   try {

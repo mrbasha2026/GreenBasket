@@ -1,5 +1,5 @@
-// Auto-Results Service: Fetches comprehensive match data from API-Football via Netlify function
-// Includes: results, events (goals/cards/subs), lineups, statistics, standings
+// Auto-Results Service: Fetches comprehensive match data from API-Football
+// Supports: Netlify Functions proxy OR direct API calls (for local dev)
 
 import { MATCHES, TEAMS } from './wc2026-data';
 import { MatchResult } from './wc2026-logic';
@@ -7,12 +7,10 @@ import { MatchResult } from './wc2026-logic';
 // API fixture status codes
 export type MatchStatusAPI = 'NS' | '1H' | 'HT' | '2H' | 'ET' | 'BT' | 'P' | 'SUSP' | 'INT' | 'FT' | 'AET' | 'PEN' | 'PST' | 'CANC' | 'ABD' | 'AWD' | 'WO' | 'LIVE';
 
-// === API Data Types ===
-
 export interface MatchEvent {
   time: { elapsed: number; extra: number | null };
-  type: string;       // Goal, Card, subst
-  detail: string;     // Normal Goal, Own Goal, Penalty, Yellow Card, Red Card, etc.
+  type: string;
+  detail: string;
   team: { name: string; id: number; logo?: string };
   player: { name: string | null; id: number | null };
   assist: { name: string | null; id: number | null };
@@ -64,7 +62,6 @@ export interface APIFixture {
   referee?: string;
   leagueId?: number;
   leagueName?: string;
-  // Enhanced data (from live/detail fetch)
   events?: MatchEvent[];
   lineups?: MatchLineup[];
   statistics?: MatchStats[];
@@ -94,7 +91,6 @@ export interface APIResponse {
   standings?: APIStandings | null;
 }
 
-// Single fixture detail response
 export interface APIFixtureDetail {
   success: boolean;
   fixture: APIFixture | null;
@@ -105,7 +101,7 @@ export interface APIFixtureDetail {
   message?: string;
 }
 
-// Team name mapping: our name → possible API names
+// Team name mapping
 const TEAM_NAME_ALIASES: Record<string, string[]> = {
   'Korea Republic': ['South Korea', 'Korea Republic', 'Korea Rep.'],
   'IR Iran': ['Iran', 'IR Iran', 'Islamic Rep. of Iran'],
@@ -120,16 +116,11 @@ const TEAM_NAME_ALIASES: Record<string, string[]> = {
   'Bosnia and Herzegovina': ['Bosnia and Herz.', 'Bosnia and Herzegovina', 'Bosnia'],
 };
 
-// Build reverse mapping: API name → our name
 const API_TO_OUR_NAME: Record<string, string> = {};
 for (const [ourName, aliases] of Object.entries(TEAM_NAME_ALIASES)) {
-  for (const alias of aliases) {
-    API_TO_OUR_NAME[alias.toLowerCase()] = ourName;
-  }
+  for (const alias of aliases) API_TO_OUR_NAME[alias.toLowerCase()] = ourName;
 }
-for (const teamName of Object.keys(TEAMS)) {
-  API_TO_OUR_NAME[teamName.toLowerCase()] = teamName;
-}
+for (const teamName of Object.keys(TEAMS)) API_TO_OUR_NAME[teamName.toLowerCase()] = teamName;
 
 function normalizeTeamName(apiName: string): string | null {
   const lower = apiName.toLowerCase().trim();
@@ -152,29 +143,17 @@ export function matchFixtureToOurMatch(fixture: APIFixture): number | null {
   const homeTeam = normalizeTeamName(fixture.homeTeam);
   const awayTeam = normalizeTeamName(fixture.awayTeam);
   if (!homeTeam || !awayTeam) return null;
-
-  const match = MATCHES.find(m => {
-    if (m.round === 'group') {
-      return m.team1 === homeTeam && m.team2 === awayTeam;
-    }
-    return m.team1 === homeTeam && m.team2 === awayTeam;
-  });
+  const match = MATCHES.find(m => m.team1 === homeTeam && m.team2 === awayTeam);
   return match?.id || null;
 }
 
 export function extractResult(fixture: APIFixture): MatchResult | null {
   if (!isMatchFinished(fixture.status)) return null;
-
   let homeGoals = fixture.scoreFulltimeHome;
   let awayGoals = fixture.scoreFulltimeAway;
-  if (homeGoals === null || awayGoals === null) {
-    homeGoals = fixture.goalsHome;
-    awayGoals = fixture.goalsAway;
-  }
+  if (homeGoals === null || awayGoals === null) { homeGoals = fixture.goalsHome; awayGoals = fixture.goalsAway; }
   if (homeGoals === null || awayGoals === null) return null;
-
   const result: MatchResult = { homeGoals, awayGoals };
-
   if (fixture.status === 'PEN' || fixture.scorePenaltyHome !== null) {
     if (fixture.scorePenaltyHome !== null && fixture.scorePenaltyAway !== null) {
       result.homePenalties = fixture.scorePenaltyHome;
@@ -188,87 +167,215 @@ async function safeParseJSON<T>(response: Response): Promise<T | null> {
   try {
     const text = await response.text();
     const trimmed = text.trim();
-    if (trimmed.startsWith('<') || trimmed.startsWith('<!DOCTYPE')) {
-      console.warn('[auto-results] Received HTML instead of JSON');
-      return null;
-    }
+    if (trimmed.startsWith('<') || trimmed.startsWith('<!DOCTYPE')) return null;
     return JSON.parse(trimmed) as T;
-  } catch {
-    console.warn('[auto-results] Failed to parse response as JSON');
-    return null;
-  }
+  } catch { return null; }
 }
 
-// Fetch results from Netlify function (with optional standings)
+// === DIRECT API ACCESS (for local dev when Netlify Functions are unavailable) ===
+
+const API_DIRECT_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
+const API_HOST = 'api-football-v1.p.rapidapi.com';
+
+function getDirectApiKey(): string | null {
+  if (typeof window === 'undefined') return null;
+  // Check for direct API key in env or localStorage
+  return process.env.NEXT_PUBLIC_API_FOOTBALL_KEY || localStorage.getItem('wc2026-api-key') || null;
+}
+
+function isNetlifyFunctionsAvailable(): boolean {
+  // If deployed on Netlify (has .netlify path), use functions
+  // Otherwise try direct API
+  return typeof window !== 'undefined' && window.location.hostname.includes('netlify.app');
+}
+
+// Direct API fetch (bypasses Netlify Functions, used in local dev)
+async function directApiFetch(endpoint: string): Promise<any> {
+  const apiKey = getDirectApiKey();
+  if (!apiKey) return null;
+
+  const response = await fetch(`${API_DIRECT_BASE}${endpoint}`, {
+    method: 'GET',
+    headers: {
+      'x-apisports-key': apiKey,
+      'x-rapidapi-key': apiKey,
+      'x-rapidapi-host': API_HOST,
+    },
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+function mapDirectFixture(fixture: any): APIFixture {
+  const f = fixture.fixture;
+  const teams = fixture.teams;
+  const goals = fixture.goals;
+  const score = fixture.score;
+  return {
+    id: f.id,
+    date: f.date,
+    timestamp: f.timestamp,
+    status: f.status.short,
+    statusLong: f.status.long,
+    elapsed: f.status.elapsed,
+    homeTeam: teams.home.name,
+    awayTeam: teams.away.name,
+    homeTeamId: teams.home.id,
+    awayTeamId: teams.away.id,
+    homeLogo: teams.home.logo,
+    awayLogo: teams.away.logo,
+    homeWinner: teams.home.winner,
+    awayWinner: teams.away.winner,
+    goalsHome: goals.home,
+    goalsAway: goals.away,
+    scoreHalftimeHome: score.halftime?.home ?? null,
+    scoreHalftimeAway: score.halftime?.away ?? null,
+    scoreFulltimeHome: score.fulltime.home,
+    scoreFulltimeAway: score.fulltime.away,
+    scoreExtratimeHome: score.extratime?.home ?? null,
+    scoreExtratimeAway: score.extratime?.away ?? null,
+    scorePenaltyHome: score.penalty?.home ?? null,
+    scorePenaltyAway: score.penalty?.away ?? null,
+    round: fixture.league.round,
+    venueName: f.venue?.name,
+    venueCity: f.venue?.city,
+    referee: f.referee,
+    leagueId: fixture.league.id,
+    leagueName: fixture.league.name,
+  };
+}
+
+// Fetch results - tries Netlify Functions first, falls back to direct API
 export async function fetchResults(date?: string, includeStandings?: boolean): Promise<APIResponse> {
-  try {
-    let url = '/.netlify/functions/fetch-results';
-    const params = new URLSearchParams();
-    if (date) params.set('date', date);
-    if (includeStandings) params.set('include', 'standings');
-    if (params.toString()) url += `?${params.toString()}`;
+  // Try Netlify Functions first
+  if (isNetlifyFunctionsAvailable()) {
+    try {
+      let url = '/.netlify/functions/fetch-results';
+      const params = new URLSearchParams();
+      if (date) params.set('date', date);
+      if (includeStandings) params.set('include', 'standings');
+      if (params.toString()) url += `?${params.toString()}`;
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      return { success: false, count: 0, fixtures: [], error: `HTTP_${response.status}` };
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await safeParseJSON<APIResponse>(response);
+        if (data) return data;
+      }
+    } catch { /* Fall through to direct API */ }
+  }
+
+  // Direct API fallback
+  const apiKey = getDirectApiKey();
+  if (!apiKey) {
+    return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED', message: 'أضف مفتاح API في الإعدادات أو اضبط API_FOOTBALL_KEY في Netlify' };
+  }
+
+  try {
+    let endpoint = `/fixtures?league=1&season=2026`;
+    if (date) endpoint += `&date=${date}`;
+    const data = await directApiFetch(endpoint);
+    if (!data) return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
+
+    const fixtures = (data.response || []).map(mapDirectFixture);
+
+    // Fetch standings if requested
+    let standings = null;
+    if (includeStandings) {
+      const standingsData = await directApiFetch('/standings?league=1&season=2026');
+      if (standingsData?.response?.[0]?.league) {
+        const league = standingsData.response[0].league;
+        standings = {
+          league: { id: league.id, name: league.name, logo: league.logo, flag: league.flag },
+          groups: (league.standings || []).map((group: any) => group.map((team: any) => ({
+            rank: team.rank,
+            team: { name: team.team.name, id: team.team.id, logo: team.team.logo },
+            points: team.points,
+            all: team.all,
+            form: team.form,
+            goalsDiff: team.goalsDiff,
+            description: team.description,
+          }))),
+        };
+      }
     }
-    const data = await safeParseJSON<APIResponse>(response);
-    if (!data) {
-      return { success: false, count: 0, fixtures: [], error: 'INVALID_RESPONSE', message: 'Netlify Functions غير منشورة' };
-    }
-    return data;
+
+    return { success: true, count: fixtures.length, fixtures, standings };
   } catch (error) {
-    console.error('[auto-results] Failed to fetch results:', error);
+    console.error('[auto-results] Direct API fetch failed:', error);
     return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR', message: 'خطأ في الاتصال' };
   }
 }
 
-// Fetch live matches from Netlify function (includes events by default)
+// Fetch live matches
 export async function fetchLiveMatches(): Promise<APIResponse> {
+  // Try Netlify Functions first
+  if (isNetlifyFunctionsAvailable()) {
+    try {
+      const url = '/.netlify/functions/fetch-live?stats=true';
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await safeParseJSON<APIResponse>(response);
+        if (data) return data;
+      }
+    } catch { /* Fall through */ }
+  }
+
+  // Direct API fallback
+  const apiKey = getDirectApiKey();
+  if (!apiKey) return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED' };
+
   try {
-    const url = '/.netlify/functions/fetch-live?stats=true';
-    const response = await fetch(url);
-    if (!response.ok) {
-      return { success: false, count: 0, fixtures: [], error: `HTTP_${response.status}` };
+    // Get today's fixtures and filter for live
+    const data = await directApiFetch('/fixtures?live=all&league=1&season=2026');
+    if (!data) return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
+
+    const fixtures = (data.response || []).map(mapDirectFixture);
+
+    // Also fetch events for each live fixture (up to 5)
+    for (const fixture of fixtures.slice(0, 5)) {
+      try {
+        const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
+        if (eventsData?.response) {
+          fixture.events = eventsData.response.map((e: any) => ({
+            time: { elapsed: e.time.elapsed, extra: e.time.extra },
+            type: e.type,
+            detail: e.detail,
+            team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
+            player: { name: e.player.name, id: e.player.id },
+            assist: { name: e.assist.name, id: e.assist.id },
+            comments: e.comments,
+          }));
+        }
+      } catch { /* Skip events for this fixture */ }
     }
-    const data = await safeParseJSON<APIResponse>(response);
-    if (!data) {
-      return { success: false, count: 0, fixtures: [], error: 'INVALID_RESPONSE', message: 'Netlify Functions غير منشورة' };
-    }
-    return data;
+
+    return { success: true, count: fixtures.length, fixtures };
   } catch (error) {
-    console.error('[auto-results] Failed to fetch live matches:', error);
-    return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR', message: 'خطأ في الاتصال' };
+    console.error('[auto-results] Direct live fetch failed:', error);
+    return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR' };
   }
 }
 
-// Fetch single fixture detail (events, lineups, statistics)
+// Fetch single fixture detail
 export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureDetail> {
   try {
     const url = `/.netlify/functions/fetch-results?fixture=${fixtureId}&include=events,lineups,statistics`;
     const response = await fetch(url);
-    if (!response.ok) {
-      return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: `HTTP_${response.status}` };
-    }
+    if (!response.ok) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: `HTTP_${response.status}` };
     const data = await safeParseJSON<APIFixtureDetail>(response);
-    if (!data) {
-      return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'INVALID_RESPONSE' };
-    }
+    if (!data) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'INVALID_RESPONSE' };
     return data;
   } catch (error) {
-    console.error('[auto-results] Failed to fetch fixture detail:', error);
     return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'NETWORK_ERROR' };
   }
 }
 
-// Process all fixtures and return mapped results
+// Process all fixtures
 export function processFixtures(fixtures: APIFixture[]): Record<number, { result: MatchResult; status: MatchStatusAPI; fixture: APIFixture }> {
   const mapped: Record<number, { result: MatchResult; status: MatchStatusAPI; fixture: APIFixture }> = {};
-
   for (const fixture of fixtures) {
     const matchId = matchFixtureToOurMatch(fixture);
     if (matchId === null) continue;
-
     const result = extractResult(fixture);
     if (result || isMatchLive(fixture.status)) {
       mapped[matchId] = {
@@ -278,11 +385,9 @@ export function processFixtures(fixtures: APIFixture[]): Record<number, { result
       };
     }
   }
-
   return mapped;
 }
 
-// Map Arabic event type names
 export function getEventTypeAr(event: MatchEvent): string {
   if (event.type === 'Goal') {
     if (event.detail === 'Normal Goal') return 'هدف';
@@ -313,24 +418,14 @@ export function getEventIcon(event: MatchEvent): string {
   return '📌';
 }
 
-// Map Arabic stat type names
 export function getStatTypeAr(type: string): string {
   const map: Record<string, string> = {
-    'Shots on Goal': 'تسديدات على المرمى',
-    'Shots off Goal': 'تسديدات خارج المرمى',
-    'Total Shots': 'إجمالي التسديدات',
-    'Blocked Shots': 'تسديدات محظورة',
-    'Shots insidebox': 'تسديدات داخل الصندوق',
-    'Shots outsidebox': 'تسديدات خارج الصندوق',
-    'Fouls': 'أخطاء',
-    'Corner Kicks': 'ركنيات',
-    'Offsides': 'تسلل',
-    'Ball Possession': 'الاستحواذ',
-    'Yellow Cards': 'بطاقات صفراء',
-    'Red Cards': 'بطاقات حمراء',
-    'Goalkeeper Saves': 'تصديات الحارس',
-    'Total passes': 'إجمالي التمريرات',
-    'Passes accurate': 'تمريرات دقيقة',
+    'Shots on Goal': 'تسديدات على المرمى', 'Shots off Goal': 'تسديدات خارج المرمى',
+    'Total Shots': 'إجمالي التسديدات', 'Blocked Shots': 'تسديدات محظورة',
+    'Fouls': 'أخطاء', 'Corner Kicks': 'ركنيات', 'Offsides': 'تسلل',
+    'Ball Possession': 'الاستحواذ', 'Yellow Cards': 'بطاقات صفراء',
+    'Red Cards': 'بطاقات حمراء', 'Goalkeeper Saves': 'تصديات الحارس',
+    'Total passes': 'إجمالي التمريرات', 'Passes accurate': 'تمريرات دقيقة',
     'Passes %': 'نسبة التمرير',
   };
   return map[type] || type;

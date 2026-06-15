@@ -501,9 +501,18 @@ export default function Home() {
                     {fetchError}
                   </span>
                   {fetchError.includes('API') && (
-                    <span className="text-[9px] text-muted-foreground max-w-[200px]">
-                      أضف API_FOOTBALL_KEY في متغيرات بيئة Netlify
-                    </span>
+                    <button
+                      onClick={() => {
+                        const key = prompt('أدخل مفتاح API-Football (من api-sports.io):');
+                        if (key) {
+                          localStorage.setItem('wc2026-api-key', key);
+                          refreshNow();
+                        }
+                      }}
+                      className="text-[9px] text-blue-500 hover:text-blue-400 underline max-w-[200px] text-right"
+                    >
+                      أدخل مفتاح API يدوياً
+                    </button>
                   )}
                 </div>
               )}

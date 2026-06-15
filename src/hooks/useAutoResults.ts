@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useWC2026Store } from '@/store/wc2026-store';
-import { fetchResults, fetchLiveMatches, processFixtures, isMatchFinished, isMatchLive, type MatchStatusAPI, type APIFixture } from '@/lib/auto-results';
-import { MATCHES } from '@/lib/wc2026-data';
-import type { LiveScore, MatchEvent, MatchLineup, MatchStats } from '@/store/wc2026-store';
+import { fetchResults, fetchLiveMatches, processFixtures, isMatchFinished, isMatchLive, type MatchStatusAPI, type APIFixture, type MatchEvent } from '@/lib/auto-results';
+import { MATCHES, TEAMS } from '@/lib/wc2026-data';
+import type { LiveScore, MatchLineup, MatchStats } from '@/store/wc2026-store';
 
 // Venue timezone offsets
 const VENUE_TZ_OFFSETS: Record<string, number> = {
@@ -51,9 +51,35 @@ function fixtureToLiveScore(fixture: APIFixture): LiveScore {
   };
 }
 
+// Send a browser notification for match events
+function sendEventNotification(title: string, body: string, tag: string) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission !== 'granted') return;
+
+  try {
+    const notif = new Notification(title, {
+      body,
+      icon: '/wc2026-icon-192.png',
+      badge: '/wc2026-favicon.png',
+      tag,
+      dir: 'rtl',
+      lang: 'ar',
+    });
+    notif.onclick = () => { window.focus(); notif.close(); };
+  } catch {
+    // Try service worker
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, { body, icon: '/wc2026-icon-192.png', tag, dir: 'rtl', lang: 'ar' });
+      });
+    }
+  }
+}
+
 export function useAutoResults() {
   const {
     autoResultsEnabled, isFetching, fetchError, lastFetchTime,
+    matchEvents, liveScores,
     setAutoResults, setAutoResultsEnabled, setFetchState,
     setLiveMatchStatuses, setLiveScores,
     setMatchEvents, setMatchLineups, setMatchStats,
@@ -63,7 +89,98 @@ export function useAutoResults() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const liveCheckRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(false);
-  const apiKeyConfiguredRef = useRef<boolean | null>(null);
+  const previousEventsRef = useRef<Record<number, string>>({}); // matchId → last event hash
+
+  // Check for new events and send notifications
+  const checkAndNotifyNewEvents = useCallback((newEventsMap: Record<number, MatchEvent[]>) => {
+    for (const [matchIdStr, events] of Object.entries(newEventsMap)) {
+      const matchId = parseInt(matchIdStr);
+      const match = MATCHES.find(m => m.id === matchId);
+      if (!match) continue;
+
+      const team1Ar = TEAMS[match.team1]?.nameAr || match.team1;
+      const team2Ar = TEAMS[match.team2]?.nameAr || match.team2;
+
+      for (const event of events) {
+        // Create a unique hash for this event
+        const eventHash = `${event.time.elapsed}-${event.type}-${event.detail}-${event.player.name}-${event.team.name}`;
+
+        // Skip if we already notified about this event
+        const prevHash = previousEventsRef.current[matchId];
+        if (prevHash === eventHash) continue;
+
+        // Only notify for goals, red cards, and match start
+        if (event.type === 'Goal') {
+          const goalType = event.detail === 'Penalty' ? '(ركلة جزاء)' : event.detail === 'Own Goal' ? '(هدف عكسي)' : '';
+          sendEventNotification(
+            `⚽ هدف! ${team1Ar} ضد ${team2Ar}`,
+            `${event.player.name || 'هدف'} ${goalType} - الدقيقة ${event.time.elapsed}'`,
+            `goal-${matchId}-${event.time.elapsed}`
+          );
+          previousEventsRef.current[matchId] = eventHash;
+        } else if (event.type === 'Card' && (event.detail === 'Red Card' || event.detail === 'Second Yellow Card')) {
+          sendEventNotification(
+            `🟥 بطاقة حمراء! ${team1Ar} ضد ${team2Ar}`,
+            `${event.player.name} - الدقيقة ${event.time.elapsed}'`,
+            `card-${matchId}-${event.time.elapsed}`
+          );
+          previousEventsRef.current[matchId] = eventHash;
+        }
+      }
+    }
+  }, []);
+
+  // Check for score changes and notify
+  const checkAndNotifyScoreChange = useCallback(
+    (newScores: Record<number, LiveScore>) => {
+      for (const [matchIdStr, newScore] of Object.entries(newScores)) {
+        const matchId = parseInt(matchIdStr);
+        const match = MATCHES.find(m => m.id === matchId);
+        if (!match) continue;
+
+        const team1Ar = TEAMS[match.team1]?.nameAr || match.team1;
+        const team2Ar = TEAMS[match.team2]?.nameAr || match.team2;
+        const prevScore = liveScores[matchId];
+
+        // Check if score changed
+        if (prevScore && (prevScore.homeGoals !== newScore.homeGoals || prevScore.awayGoals !== newScore.awayGoals)) {
+          sendEventNotification(
+            `⚽ تحديث النتيجة! ${team1Ar} ${newScore.homeGoals} - ${newScore.awayGoals} ${team2Ar}`,
+            `الدقيقة ${newScore.elapsed || '?'}'`,
+            `score-${matchId}-${newScore.homeGoals}-${newScore.awayGoals}`
+          );
+        }
+
+        // Notify when match goes to halftime
+        if (prevScore && prevScore.status !== 'HT' && newScore.status === 'HT') {
+          sendEventNotification(
+            `⏸️ نهاية الشوط الأول - ${team1Ar} ${newScore.homeGoals} - ${newScore.awayGoals} ${team2Ar}`,
+            `استراحة`,
+            `ht-${matchId}`
+          );
+        }
+
+        // Notify when match finishes
+        if (prevScore && !isMatchFinished(prevScore.status as MatchStatusAPI) && isMatchFinished(newScore.status as MatchStatusAPI)) {
+          sendEventNotification(
+            `🏁 انتهت المباراة! ${team1Ar} ${newScore.homeGoals} - ${newScore.awayGoals} ${team2Ar}`,
+            `النتيجة النهائية`,
+            `ft-${matchId}`
+          );
+        }
+
+        // Notify when match starts (was upcoming, now live)
+        if ((!prevScore || prevScore.status === 'NS') && isMatchLive(newScore.status as MatchStatusAPI)) {
+          sendEventNotification(
+            `⚽ بدأت المباراة! ${team1Ar} ضد ${team2Ar}`,
+            `المباراة جارية الآن`,
+            `start-${matchId}`
+          );
+        }
+      }
+    },
+    [liveScores]
+  );
 
   // Fetch and process results
   const fetchAndProcess = useCallback(async () => {
@@ -73,30 +190,19 @@ export function useAutoResults() {
     try {
       const now = new Date();
       const saudiDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
-
-      // Fetch results with standings (every 5 min fetch)
       const response = await fetchResults(saudiDate, true);
 
       if (response.error === 'API_KEY_NOT_CONFIGURED') {
-        apiKeyConfiguredRef.current = false;
-        setFetchState(false, 'مفتاح API غير مُعد - يرجى إعداد API_FOOTBALL_KEY في Netlify', null);
+        setFetchState(false, 'مفتاح API غير مُعد', null);
         return;
       }
-      if (response.error === 'INVALID_RESPONSE') {
-        apiKeyConfiguredRef.current = null;
-        setFetchState(false, 'Netlify Functions غير منشورة', null);
+      if (response.error === 'INVALID_RESPONSE' || response.error === 'NETWORK_ERROR' || response.error === 'API_ERROR') {
+        setFetchState(false, 'لا يمكن الاتصال بالخادم', null);
         return;
       }
-      if (response.error === 'NETWORK_ERROR') {
-        setFetchState(false, 'خطأ في الاتصال بالخادم', null);
-        return;
-      }
-
-      apiKeyConfiguredRef.current = true;
 
       if (response.success && response.fixtures.length > 0) {
         const processed = processFixtures(response.fixtures);
-
         const autoResults: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }> = {};
         const liveStatuses: Record<number, string> = {};
         const liveScoreMap: Record<number, LiveScore> = {};
@@ -107,110 +213,96 @@ export function useAutoResults() {
 
         for (const [matchIdStr, data] of Object.entries(processed)) {
           const matchId = parseInt(matchIdStr);
-
-          if (isMatchFinished(data.status as MatchStatusAPI)) {
-            autoResults[matchId] = data.result;
-          }
+          if (isMatchFinished(data.status as MatchStatusAPI)) autoResults[matchId] = data.result;
           if (isMatchLive(data.status as MatchStatusAPI)) {
             liveStatuses[matchId] = data.status;
             liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
           }
-
-          // Store fixture ID mapping
           fixtureIdMap[matchId] = data.fixture.id;
-
-          // Store events from fixture if available
-          if (data.fixture.events && data.fixture.events.length > 0) {
-            eventsMap[matchId] = data.fixture.events;
-          }
-          if (data.fixture.lineups && data.fixture.lineups.length > 0) {
-            lineupsMap[matchId] = data.fixture.lineups;
-          }
-          if (data.fixture.statistics && data.fixture.statistics.length > 0) {
-            statsMap[matchId] = data.fixture.statistics;
-          }
+          if (data.fixture.events?.length) eventsMap[matchId] = data.fixture.events;
+          if (data.fixture.lineups?.length) lineupsMap[matchId] = data.fixture.lineups;
+          if (data.fixture.statistics?.length) statsMap[matchId] = data.fixture.statistics;
         }
 
-        if (Object.keys(autoResults).length > 0) setAutoResults(autoResults);
+        if (Object.keys(autoResults).length) setAutoResults(autoResults);
         setLiveMatchStatuses(liveStatuses);
         setLiveScores(liveScoreMap);
-        if (Object.keys(eventsMap).length > 0) setMatchEvents(eventsMap);
-        if (Object.keys(lineupsMap).length > 0) setMatchLineups(lineupsMap);
-        if (Object.keys(statsMap).length > 0) setMatchStats(statsMap);
+        if (Object.keys(eventsMap).length) { setMatchEvents(eventsMap); checkAndNotifyNewEvents(eventsMap); }
+        if (Object.keys(lineupsMap).length) setMatchLineups(lineupsMap);
+        if (Object.keys(statsMap).length) setMatchStats(statsMap);
         setApiFixtureIds(fixtureIdMap);
+
+        // Check for score changes
+        if (Object.keys(liveScoreMap).length) checkAndNotifyScoreChange(liveScoreMap);
       }
 
-      // Store standings
-      if (response.standings) {
-        setApiStandings(response.standings);
-      }
-
+      if (response.standings) setApiStandings(response.standings);
       setFetchState(false, null, Date.now());
     } catch (error) {
       setFetchState(false, 'فشل في جلب النتائج', null);
     }
-  }, [isFetching, setAutoResults, setFetchState, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiStandings, setApiFixtureIds]);
+  }, [isFetching, setAutoResults, setFetchState, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiStandings, setApiFixtureIds, checkAndNotifyNewEvents, checkAndNotifyScoreChange]);
 
-  // Fetch live matches specifically (includes events)
+  // Fetch live matches (with events for goal notifications)
   const fetchLive = useCallback(async () => {
     try {
       const response = await fetchLiveMatches();
-      if (response.error === 'API_KEY_NOT_CONFIGURED' || response.error === 'INVALID_RESPONSE') return;
+      if (response.error) return;
+      if (!response.success || !response.fixtures.length) return;
 
-      if (response.success && response.fixtures.length > 0) {
-        const processed = processFixtures(response.fixtures);
-        const liveStatuses: Record<number, string> = {};
-        const autoResults: Record<number, any> = {};
-        const liveScoreMap: Record<number, LiveScore> = {};
-        const eventsMap: Record<number, MatchEvent[]> = {};
-        const lineupsMap: Record<number, MatchLineup[]> = {};
-        const statsMap: Record<number, MatchStats[]> = {};
-        const fixtureIdMap: Record<number, number> = {};
+      const processed = processFixtures(response.fixtures);
+      const liveStatuses: Record<number, string> = {};
+      const autoResults: Record<number, any> = {};
+      const liveScoreMap: Record<number, LiveScore> = {};
+      const eventsMap: Record<number, MatchEvent[]> = {};
+      const lineupsMap: Record<number, MatchLineup[]> = {};
+      const statsMap: Record<number, MatchStats[]> = {};
+      const fixtureIdMap: Record<number, number> = {};
 
-        for (const [matchIdStr, data] of Object.entries(processed)) {
-          const matchId = parseInt(matchIdStr);
-
-          if (isMatchFinished(data.status as MatchStatusAPI)) {
-            autoResults[matchId] = data.result;
-          }
-          liveStatuses[matchId] = data.status;
-          fixtureIdMap[matchId] = data.fixture.id;
-
-          // Always update live score for live matches
-          if (isMatchLive(data.status as MatchStatusAPI)) {
-            liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
-          }
-
-          // Store enhanced data from live fetch
-          if (data.fixture.events && data.fixture.events.length > 0) {
-            eventsMap[matchId] = data.fixture.events;
-          }
-          if (data.fixture.lineups && data.fixture.lineups.length > 0) {
-            lineupsMap[matchId] = data.fixture.lineups;
-          }
-          if (data.fixture.statistics && data.fixture.statistics.length > 0) {
-            statsMap[matchId] = data.fixture.statistics;
-          }
-        }
-
-        if (Object.keys(autoResults).length > 0) setAutoResults(autoResults);
-        setLiveMatchStatuses(liveStatuses);
-        setLiveScores(liveScoreMap);
-        if (Object.keys(eventsMap).length > 0) setMatchEvents(eventsMap);
-        if (Object.keys(lineupsMap).length > 0) setMatchLineups(lineupsMap);
-        if (Object.keys(statsMap).length > 0) setMatchStats(statsMap);
-        setApiFixtureIds(fixtureIdMap);
+      for (const [matchIdStr, data] of Object.entries(processed)) {
+        const matchId = parseInt(matchIdStr);
+        if (isMatchFinished(data.status as MatchStatusAPI)) autoResults[matchId] = data.result;
+        liveStatuses[matchId] = data.status;
+        fixtureIdMap[matchId] = data.fixture.id;
+        if (isMatchLive(data.status as MatchStatusAPI)) liveScoreMap[matchId] = fixtureToLiveScore(data.fixture);
+        if (data.fixture.events?.length) eventsMap[matchId] = data.fixture.events;
+        if (data.fixture.lineups?.length) lineupsMap[matchId] = data.fixture.lineups;
+        if (data.fixture.statistics?.length) statsMap[matchId] = data.fixture.statistics;
       }
-    } catch {
-      // Silently fail for live checks
-    }
-  }, [setAutoResults, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiFixtureIds]);
 
+      if (Object.keys(autoResults).length) setAutoResults(autoResults);
+      setLiveMatchStatuses(liveStatuses);
+      setLiveScores(liveScoreMap);
+      if (Object.keys(eventsMap).length) { setMatchEvents(eventsMap); checkAndNotifyNewEvents(eventsMap); }
+      if (Object.keys(lineupsMap).length) setMatchLineups(lineupsMap);
+      if (Object.keys(statsMap).length) setMatchStats(statsMap);
+      setApiFixtureIds(fixtureIdMap);
+
+      // Check for score changes
+      if (Object.keys(liveScoreMap).length) checkAndNotifyScoreChange(liveScoreMap);
+    } catch { /* Silent */ }
+  }, [setAutoResults, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiFixtureIds, checkAndNotifyNewEvents, checkAndNotifyScoreChange]);
+
+  // Auto-enable and start fetching on mount
   useEffect(() => {
-    if (!autoResultsEnabled || !mountedRef.current) return;
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      // Auto-enable if not already set
+      if (!autoResultsEnabled) {
+        setAutoResultsEnabled(true);
+      }
+    }
 
+    // Always run if enabled (default true)
+    if (!autoResultsEnabled) return;
+
+    // Initial fetch
     fetchAndProcess();
+
+    // Periodic fetch every 5 minutes
     intervalRef.current = setInterval(() => fetchAndProcess(), 5 * 60 * 1000);
+
+    // Live check every 60 seconds when matches are active
     liveCheckRef.current = setInterval(() => {
       if (hasActiveOrUpcomingMatches()) fetchLive();
     }, 60 * 1000);
@@ -221,20 +313,13 @@ export function useAutoResults() {
     };
   }, [autoResultsEnabled, fetchAndProcess, fetchLive]);
 
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => { mountedRef.current = false; };
-  }, []);
-
   return {
     autoResultsEnabled,
     isFetching,
     fetchError,
     lastFetchTime,
-    apiKeyConfigured: apiKeyConfiguredRef.current,
     toggleAutoResults: (enabled: boolean) => {
       setAutoResultsEnabled(enabled);
-      if (enabled) fetchAndProcess();
     },
     refreshNow: fetchAndProcess,
   };

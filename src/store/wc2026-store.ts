@@ -134,7 +134,7 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   hydrated: false,
   favoriteTeams: new Set<string>(),
   favoriteMatches: new Set<number>(),
-  autoResultsEnabled: false,
+  autoResultsEnabled: true,
   lastFetchTime: null,
   fetchError: null,
   isFetching: false,

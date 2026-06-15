@@ -11,8 +11,16 @@ interface WC2026State {
   favoriteTeams: Set<string>;
   favoriteMatches: Set<number>;
 
+  // Auto-results state
+  autoResultsEnabled: boolean;
+  lastFetchTime: number | null;
+  fetchError: string | null;
+  isFetching: boolean;
+  liveMatchStatuses: Record<number, string>; // matchId → status (1H, HT, 2H, FT, etc.)
+
   // Actions
   setMatchResult: (matchId: number, result: MatchResult) => void;
+  setAutoResults: (results: Record<number, MatchResult>) => void;
   clearMatchResult: (matchId: number) => void;
   setActiveTab: (tab: string) => void;
   setEditingMatch: (matchId: number | null) => void;
@@ -22,6 +30,9 @@ interface WC2026State {
   toggleFavoriteMatch: (matchId: number) => void;
   setPrediction: (matchId: number, result: MatchResult) => void;
   clearPrediction: (matchId: number) => void;
+  setAutoResultsEnabled: (enabled: boolean) => void;
+  setFetchState: (isFetching: boolean, error: string | null, lastFetchTime: number | null) => void;
+  setLiveMatchStatuses: (statuses: Record<number, string>) => void;
 }
 
 const STORAGE_KEY = 'wc2026-results';
@@ -117,6 +128,8 @@ function saveFavoriteMatches(favorites: Set<number>) {
   }
 }
 
+const AUTO_RESULTS_KEY = 'wc2026-auto-results-enabled';
+
 export const useWC2026Store = create<WC2026State>((set) => ({
   results: {},
   predictions: {},
@@ -125,6 +138,11 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   hydrated: false,
   favoriteTeams: new Set<string>(),
   favoriteMatches: new Set<number>(),
+  autoResultsEnabled: false,
+  lastFetchTime: null,
+  fetchError: null,
+  isFetching: false,
+  liveMatchStatuses: {},
 
   setMatchResult: (matchId, result) =>
     set((state) => {
@@ -152,7 +170,8 @@ export const useWC2026Store = create<WC2026State>((set) => ({
     const storedPredictions = loadPredictions();
     const storedFavorites = loadFavoriteTeams();
     const storedFavMatches = loadFavoriteMatches();
-    set({ results: storedResults, predictions: storedPredictions, favoriteTeams: storedFavorites, favoriteMatches: storedFavMatches, hydrated: true });
+    const autoResultsEnabled = localStorage.getItem(AUTO_RESULTS_KEY) === 'true';
+    set({ results: storedResults, predictions: storedPredictions, favoriteTeams: storedFavorites, favoriteMatches: storedFavMatches, autoResultsEnabled, hydrated: true });
   },
   toggleFavoriteTeam: (teamName) =>
     set((state) => {
@@ -189,4 +208,24 @@ export const useWC2026Store = create<WC2026State>((set) => ({
       savePredictions(newPredictions);
       return { predictions: newPredictions };
     }),
+  setAutoResults: (autoResults) =>
+    set((state) => {
+      // Merge auto-results with existing results (auto-results take priority for finished matches)
+      const newResults = { ...state.results };
+      for (const [matchId, result] of Object.entries(autoResults)) {
+        newResults[parseInt(matchId)] = result;
+      }
+      saveResults(newResults);
+      return { results: newResults };
+    }),
+  setAutoResultsEnabled: (enabled) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(AUTO_RESULTS_KEY, String(enabled));
+    }
+    set({ autoResultsEnabled: enabled });
+  },
+  setFetchState: (isFetching, error, lastFetchTime) =>
+    set({ isFetching, fetchError: error, ...(lastFetchTime !== null ? { lastFetchTime } : {}) }),
+  setLiveMatchStatuses: (statuses) =>
+    set({ liveMatchStatuses: statuses }),
 }));

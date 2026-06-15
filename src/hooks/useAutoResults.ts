@@ -1,0 +1,199 @@
+'use client';
+
+import { useEffect, useRef, useCallback } from 'react';
+import { useWC2026Store } from '@/store/wc2026-store';
+import { fetchResults, fetchLiveMatches, processFixtures, isMatchFinished, isMatchLive, type MatchStatusAPI } from '@/lib/auto-results';
+import { MATCHES } from '@/lib/wc2026-data';
+
+// Venue timezone offsets for determining if a match is happening now
+const VENUE_TZ_OFFSETS: Record<string, number> = {
+  'Mexico City Stadium': -5,
+  'Estadio Guadalajara': -5,
+  'Estadio Monterrey': -5,
+  'Boston Stadium': -4,
+  'New York New Jersey Stadium': -4,
+  'Philadelphia Stadium': -4,
+  'Miami Stadium': -4,
+  'Atlanta Stadium': -4,
+  'Houston Stadium': -5,
+  'Dallas Stadium': -5,
+  'Kansas City Stadium': -5,
+  'Los Angeles Stadium': -7,
+  'San Francisco Bay Area Stadium': -7,
+  'Seattle Stadium': -7,
+  'Toronto Stadium': -4,
+  'BC Place Vancouver': -7,
+};
+
+function getMatchUTCDate(date: string, time: string, venue: string): Date | null {
+  const venueOffset = VENUE_TZ_OFFSETS[venue];
+  if (venueOffset === undefined) return null;
+  try {
+    const [hours, minutes] = time.split(':').map(Number);
+    const utcHours = hours - venueOffset;
+    return new Date(Date.UTC(
+      parseInt(date.substring(0, 4)),
+      parseInt(date.substring(5, 7)) - 1,
+      parseInt(date.substring(8, 10)),
+      utcHours,
+      minutes,
+      0
+    ));
+  } catch {
+    return null;
+  }
+}
+
+// Check if there are any matches happening now or about to start
+function hasActiveOrUpcomingMatches(): boolean {
+  const now = Date.now();
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const THIRTY_MIN = 30 * 60 * 1000;
+
+  for (const match of MATCHES) {
+    if (!match.time) continue;
+    const utcDate = getMatchUTCDate(match.date, match.time, match.venue);
+    if (!utcDate) continue;
+
+    const matchTime = utcDate.getTime();
+    // Match is within next 30 minutes or currently happening (within 2 hours)
+    if ((matchTime > now && matchTime - now < THIRTY_MIN) || (matchTime <= now && now - matchTime < TWO_HOURS)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function useAutoResults() {
+  const {
+    autoResultsEnabled,
+    isFetching,
+    setAutoResults,
+    setAutoResultsEnabled,
+    setFetchState,
+    setLiveMatchStatuses,
+  } = useWC2026Store();
+
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const liveCheckRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(false);
+
+  // Fetch and process results
+  const fetchAndProcess = useCallback(async () => {
+    if (isFetching) return;
+
+    setFetchState(true, null, null);
+
+    try {
+      // Get today's date in Saudi timezone
+      const now = new Date();
+      const saudiDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+
+      // Fetch results for today
+      const response = await fetchResults(saudiDate);
+
+      if (response.success && response.fixtures.length > 0) {
+        const processed = processFixtures(response.fixtures);
+
+        // Extract only finished match results
+        const autoResults: Record<number, ReturnType<typeof extractResult>> = {};
+        const liveStatuses: Record<number, string> = {};
+
+        for (const [matchIdStr, data] of Object.entries(processed)) {
+          const matchId = parseInt(matchIdStr);
+          if (isMatchFinished(data.status as MatchStatusAPI)) {
+            autoResults[matchId] = data.result;
+          }
+          if (isMatchLive(data.status as MatchStatusAPI)) {
+            liveStatuses[matchId] = data.status;
+          }
+        }
+
+        // Apply auto-results
+        if (Object.keys(autoResults).length > 0) {
+          setAutoResults(autoResults);
+        }
+        setLiveMatchStatuses(liveStatuses);
+      }
+
+      setFetchState(false, null, Date.now());
+    } catch (error) {
+      setFetchState(false, 'فشل في جلب النتائج', null);
+    }
+  }, [isFetching, setAutoResults, setFetchState, setLiveMatchStatuses]);
+
+  // Helper to extract result (needed for typing)
+  function extractResult(data: { result: any }) { return data.result; }
+
+  // Fetch live matches specifically
+  const fetchLive = useCallback(async () => {
+    try {
+      const response = await fetchLiveMatches();
+
+      if (response.success && response.fixtures.length > 0) {
+        const processed = processFixtures(response.fixtures);
+        const liveStatuses: Record<number, string> = {};
+        const autoResults: Record<number, any> = {};
+
+        for (const [matchIdStr, data] of Object.entries(processed)) {
+          const matchId = parseInt(matchIdStr);
+          if (isMatchFinished(data.status as MatchStatusAPI)) {
+            autoResults[matchId] = data.result;
+          }
+          liveStatuses[matchId] = data.status;
+        }
+
+        if (Object.keys(autoResults).length > 0) {
+          setAutoResults(autoResults);
+        }
+        setLiveMatchStatuses(liveStatuses);
+      }
+    } catch {
+      // Silently fail for live checks
+    }
+  }, [setAutoResults, setLiveMatchStatuses]);
+
+  // Start/stop auto-fetching based on enabled state
+  useEffect(() => {
+    if (!autoResultsEnabled || !mountedRef.current) return;
+
+    // Initial fetch
+    fetchAndProcess();
+
+    // Set up periodic fetching
+    // Full fetch every 5 minutes
+    intervalRef.current = setInterval(() => {
+      fetchAndProcess();
+    }, 5 * 60 * 1000);
+
+    // Live check every 60 seconds when matches are active
+    liveCheckRef.current = setInterval(() => {
+      if (hasActiveOrUpcomingMatches()) {
+        fetchLive();
+      }
+    }, 60 * 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (liveCheckRef.current) clearInterval(liveCheckRef.current);
+    };
+  }, [autoResultsEnabled, fetchAndProcess, fetchLive]);
+
+  // Mark as mounted
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  return {
+    autoResultsEnabled,
+    isFetching,
+    toggleAutoResults: (enabled: boolean) => {
+      setAutoResultsEnabled(enabled);
+      if (enabled) {
+        fetchAndProcess();
+      }
+    },
+    refreshNow: fetchAndProcess,
+  };
+}

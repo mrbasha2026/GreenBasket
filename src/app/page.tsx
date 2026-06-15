@@ -14,8 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing } from 'lucide-react';
+import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useMatchNotifications } from '@/hooks/useMatchNotifications';
+import { useAutoResults } from '@/hooks/useAutoResults';
 import { ThemeToggle } from '@/components/wc2026/ThemeToggle';
 import { CountdownTimer } from '@/components/wc2026/CountdownTimer';
 import { PredictionGame } from '@/components/wc2026/PredictionGame';
@@ -25,6 +26,7 @@ import { LiveMatches } from '@/components/wc2026/LiveMatches';
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
   const { permission, notificationsEnabled, upcomingCount, requestPermission, disableNotifications } = useMatchNotifications();
+  const { autoResultsEnabled, isFetching, toggleAutoResults, refreshNow } = useAutoResults();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
 
@@ -453,6 +455,40 @@ export default function Home() {
             {/* Reset & Notification buttons */}
             <div className="mr-auto flex items-center gap-2">
               <ThemeToggle />
+              {/* Auto-results toggle */}
+              {autoResultsEnabled ? (
+                <button
+                  onClick={() => toggleAutoResults(false)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#00A651]/10 text-[#00A651] text-xs font-medium hover:bg-[#00A651]/20 transition-colors"
+                  title="النتائج التلقائية مفعّلة - اضغط للإيقاف"
+                >
+                  {isFetching ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Wifi className="w-3.5 h-3.5" />
+                  )}
+                  <span>نتائج تلقائية</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => toggleAutoResults(true)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted transition-colors"
+                  title="تفعيل جلب النتائج تلقائياً من الإنترنت"
+                >
+                  <WifiOff className="w-3.5 h-3.5" />
+                  <span>تفعيل النتائج</span>
+                </button>
+              )}
+              {autoResultsEnabled && (
+                <button
+                  onClick={refreshNow}
+                  className="p-1 rounded-md hover:bg-muted transition-colors"
+                  title="تحديث النتائج الآن"
+                  disabled={isFetching}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+                </button>
+              )}
               {/* Notification toggle - auto for ALL matches */}
               {notificationsEnabled ? (
                 <button

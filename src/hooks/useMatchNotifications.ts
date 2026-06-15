@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MATCHES, TEAMS } from '@/lib/wc2026-data';
 
-const NOTIF_KEY = 'wc2026-notifications';
+const NOTIF_ENABLED_KEY = 'wc2026-notif-enabled';
 const NOTIF_BEFORE_MINUTES = 5; // Notify 5 minutes before match start
 
-// Get venue timezone offset (same logic as wc2026-logic.ts but we need the raw UTC date)
+// Get venue timezone offset
 const VENUE_TZ_OFFSETS: Record<string, number> = {
   'Mexico City Stadium': -5,
   'Estadio Guadalajara': -5,
@@ -45,27 +45,19 @@ function getUTCDate(date: string, time: string, venue: string): Date | null {
   }
 }
 
-interface NotificationInfo {
-  matchId: number;
-  team1: string;
-  team2: string;
-  utcDate: Date;
-  venue: string;
-}
-
 export function useMatchNotifications() {
-  const [subscribedMatches, setSubscribedMatches] = useState<Set<number>>(new Set());
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const scheduledRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const initializedRef = useRef(false);
 
-  // Load subscribed matches from localStorage
+  // Load notification preference from localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
-      const stored = localStorage.getItem(NOTIF_KEY);
-      if (stored) {
-        setSubscribedMatches(new Set(JSON.parse(stored)));
+      const stored = localStorage.getItem(NOTIF_ENABLED_KEY);
+      if (stored === 'true') {
+        setNotificationsEnabled(true);
       }
       if ('Notification' in window) {
         setPermission(Notification.permission);
@@ -75,76 +67,32 @@ export function useMatchNotifications() {
     }
   }, []);
 
-  // Save subscribed matches to localStorage
-  const saveSubscriptions = useCallback((subs: Set<number>) => {
-    if (typeof window === 'undefined') return;
+  // Format UTC time to Arabic-friendly Saudi time
+  const formatTimeAr = useCallback((utcDate: Date): string => {
     try {
-      localStorage.setItem(NOTIF_KEY, JSON.stringify([...subs]));
+      const hourStr = utcDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Riyadh',
+      });
+      const match12 = hourStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+      if (match12) {
+        const hours = parseInt(match12[1]);
+        const minutes = match12[2];
+        const isPM = match12[3].toUpperCase() === 'PM';
+        const period = isPM ? 'م' : 'ص';
+        const toArabicDigits = (n: string | number) => String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)]);
+        return `${toArabicDigits(hours)}:${toArabicDigits(minutes)} ${period}`;
+      }
+      return hourStr;
     } catch {
-      // ignore
+      return '';
     }
   }, []);
 
-  // Schedule a notification for a match
-  const scheduleNotification = useCallback((matchId: number) => {
-    const match = MATCHES.find(m => m.id === matchId);
-    if (!match || !match.time) return;
-
-    const utcDate = getUTCDate(match.date, match.time, match.venue);
-    if (!utcDate) return;
-
-    const team1Name = TEAMS[match.team1]?.nameAr || match.team1;
-    const team2Name = TEAMS[match.team2]?.nameAr || match.team2;
-
-    const now = new Date();
-    const matchTime = utcDate.getTime();
-    const beforeTime = matchTime - NOTIF_BEFORE_MINUTES * 60 * 1000;
-
-    // Clear any existing scheduled notification for this match
-    const existing = scheduledRef.current.get(matchId);
-    if (existing) {
-      clearTimeout(existing);
-      scheduledRef.current.delete(matchId);
-    }
-
-    // Schedule "5 minutes before" notification
-    if (beforeTime > now.getTime()) {
-      const beforeDelay = beforeTime - now.getTime();
-      const beforeTimer = setTimeout(() => {
-        showNotification(
-          `⏰ مباراة ${team1Name} ضد ${team2Name} ستبدأ بعد ${NOTIF_BEFORE_MINUTES} دقائق`,
-          `المباراة ستبدأ الساعة ${formatTimeAr(utcDate)} في ${match.venueAr}`,
-          matchId
-        );
-      }, beforeDelay);
-      scheduledRef.current.set(matchId, beforeTimer);
-    }
-
-    // Schedule "match started" notification
-    if (matchTime > now.getTime()) {
-      const startDelay = matchTime - now.getTime();
-      const startTimer = setTimeout(() => {
-        showNotification(
-          `⚽ بدأت المباراة! ${team1Name} ضد ${team2Name}`,
-          `المباراة جارية الآن في ${match.venueAr}`,
-          matchId
-        );
-        // Remove from subscriptions after match starts (auto-cleanup)
-        setSubscribedMatches(prev => {
-          const next = new Set(prev);
-          next.delete(matchId);
-          saveSubscriptions(next);
-          return next;
-        });
-      }, startDelay);
-      // Store the start timer (overwrite the before timer reference)
-      // We need both timers, so let's use a different approach
-      scheduledRef.current.set(matchId * 10000 + matchId, startTimer);
-    }
-  }, [saveSubscriptions]);
-
   // Show browser notification
-  const showNotification = (title: string, body: string, matchId: number) => {
+  const showNotification = useCallback((title: string, body: string, matchId: number) => {
     if (!('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
 
@@ -177,41 +125,82 @@ export function useMatchNotifications() {
         });
       }
     }
-  };
+  }, []);
 
-  // Format UTC time to Arabic-friendly Saudi time
-  const formatTimeAr = (utcDate: Date): string => {
-    try {
-      const hourStr = utcDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Riyadh',
-      });
-      const match12 = hourStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-      if (match12) {
-        const hours = parseInt(match12[1]);
-        const minutes = match12[2];
-        const isPM = match12[3].toUpperCase() === 'PM';
-        const period = isPM ? 'م' : 'ص';
-        const toArabicDigits = (n: string | number) => String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)]);
-        return `${toArabicDigits(hours)}:${toArabicDigits(minutes)} ${period}`;
-      }
-      return hourStr;
-    } catch {
-      return '';
+  // Schedule a notification for a match
+  const scheduleNotification = useCallback((matchId: number) => {
+    const match = MATCHES.find(m => m.id === matchId);
+    if (!match || !match.time) return;
+
+    const utcDate = getUTCDate(match.date, match.time, match.venue);
+    if (!utcDate) return;
+
+    const team1Name = TEAMS[match.team1]?.nameAr || match.team1;
+    const team2Name = TEAMS[match.team2]?.nameAr || match.team2;
+
+    const now = new Date();
+    const matchTime = utcDate.getTime();
+    const beforeTime = matchTime - NOTIF_BEFORE_MINUTES * 60 * 1000;
+
+    // Clear any existing scheduled notification for this match
+    const existingBefore = scheduledRef.current.get(matchId);
+    const existingStart = scheduledRef.current.get(matchId * 10000 + matchId);
+    if (existingBefore) { clearTimeout(existingBefore); scheduledRef.current.delete(matchId); }
+    if (existingStart) { clearTimeout(existingStart); scheduledRef.current.delete(matchId * 10000 + matchId); }
+
+    // Schedule "5 minutes before" notification
+    if (beforeTime > now.getTime()) {
+      const beforeDelay = beforeTime - now.getTime();
+      const beforeTimer = setTimeout(() => {
+        showNotification(
+          `⏰ مباراة ${team1Name} ضد ${team2Name} ستبدأ بعد ${NOTIF_BEFORE_MINUTES} دقائق`,
+          `المباراة ستبدأ الساعة ${formatTimeAr(utcDate)} في ${match.venueAr}`,
+          matchId
+        );
+      }, beforeDelay);
+      scheduledRef.current.set(matchId, beforeTimer);
     }
-  };
 
-  // Request notification permission
+    // Schedule "match started" notification
+    if (matchTime > now.getTime()) {
+      const startDelay = matchTime - now.getTime();
+      const startTimer = setTimeout(() => {
+        showNotification(
+          `⚽ بدأت المباراة! ${team1Name} ضد ${team2Name}`,
+          `المباراة جارية الآن في ${match.venueAr}`,
+          matchId
+        );
+      }, startDelay);
+      scheduledRef.current.set(matchId * 10000 + matchId, startTimer);
+    }
+  }, [showNotification, formatTimeAr]);
+
+  // Schedule ALL upcoming matches
+  const scheduleAllUpcoming = useCallback(() => {
+    const now = new Date();
+    for (const match of MATCHES) {
+      if (!match.time) continue;
+      const utcDate = getUTCDate(match.date, match.time, match.venue);
+      if (!utcDate) continue;
+      // Only schedule if match hasn't started yet
+      if (utcDate.getTime() > now.getTime()) {
+        scheduleNotification(match.id);
+      }
+    }
+  }, [scheduleNotification]);
+
+  // Clear all scheduled notifications
+  const clearAllScheduled = useCallback(() => {
+    for (const timer of scheduledRef.current.values()) {
+      clearTimeout(timer);
+    }
+    scheduledRef.current.clear();
+  }, []);
+
+  // Request notification permission and enable auto-notifications
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (!('Notification' in window)) {
       return false;
-    }
-
-    if (Notification.permission === 'granted') {
-      setPermission('granted');
-      return true;
     }
 
     if (Notification.permission === 'denied') {
@@ -219,92 +208,66 @@ export function useMatchNotifications() {
       return false;
     }
 
-    const result = await Notification.requestPermission();
-    setPermission(result);
-    return result === 'granted';
-  }, []);
+    if (Notification.permission !== 'granted') {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+      if (result !== 'granted') return false;
+    }
 
-  // Toggle notification for a match
-  const toggleMatchNotification = useCallback(async (matchId: number) => {
-    const granted = await requestPermission();
-    if (!granted) return false;
-
-    setSubscribedMatches(prev => {
-      const next = new Set(prev);
-      if (next.has(matchId)) {
-        next.delete(matchId);
-        // Clear scheduled notification
-        const beforeTimer = scheduledRef.current.get(matchId);
-        const startTimer = scheduledRef.current.get(matchId * 10000 + matchId);
-        if (beforeTimer) clearTimeout(beforeTimer);
-        if (startTimer) clearTimeout(startTimer);
-        scheduledRef.current.delete(matchId);
-        scheduledRef.current.delete(matchId * 10000 + matchId);
-      } else {
-        next.add(matchId);
-        // Schedule notification
-        scheduleNotification(matchId);
-      }
-      saveSubscriptions(next);
-      return next;
-    });
-
+    setPermission('granted');
+    setNotificationsEnabled(true);
+    localStorage.setItem(NOTIF_ENABLED_KEY, 'true');
+    scheduleAllUpcoming();
     return true;
-  }, [requestPermission, scheduleNotification, saveSubscriptions]);
+  }, [scheduleAllUpcoming]);
 
-  // Reschedule all notifications on mount
+  // Disable notifications
+  const disableNotifications = useCallback(() => {
+    setNotificationsEnabled(false);
+    localStorage.setItem(NOTIF_ENABLED_KEY, 'false');
+    clearAllScheduled();
+  }, [clearAllScheduled]);
+
+  // On mount: if notifications were previously enabled and permission is still granted, reschedule all
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
     if (typeof window === 'undefined') return;
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-    try {
-      const stored = localStorage.getItem(NOTIF_KEY);
-      if (stored) {
-        const matchIds: number[] = JSON.parse(stored);
-        const now = new Date();
-        for (const matchId of matchIds) {
-          const match = MATCHES.find(m => m.id === matchId);
-          if (!match || !match.time) continue;
-          const utcDate = getUTCDate(match.date, match.time, match.venue);
-          if (!utcDate) continue;
-          // Only schedule if match hasn't started yet
-          if (utcDate.getTime() > now.getTime()) {
-            scheduleNotification(matchId);
-          }
-        }
-      }
-    } catch {
-      // ignore
+    const wasEnabled = localStorage.getItem(NOTIF_ENABLED_KEY) === 'true';
+    const hasPermission = 'Notification' in window && Notification.permission === 'granted';
+
+    if (wasEnabled && hasPermission) {
+      setNotificationsEnabled(true);
+      setPermission('granted');
+      scheduleAllUpcoming();
+    } else if (wasEnabled && !hasPermission) {
+      // Permission was revoked
+      setNotificationsEnabled(false);
+      localStorage.setItem(NOTIF_ENABLED_KEY, 'false');
     }
-  }, [scheduleNotification]);
+  }, [scheduleAllUpcoming]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      for (const timer of scheduledRef.current.values()) {
-        clearTimeout(timer);
-      }
-      scheduledRef.current.clear();
+      clearAllScheduled();
     };
-  }, []);
+  }, [clearAllScheduled]);
 
-  // Check if a match has notification enabled
-  const isMatchSubscribed = useCallback((matchId: number): boolean => {
-    return subscribedMatches.has(matchId);
-  }, [subscribedMatches]);
-
-  // Get count of subscribed matches
-  const subscribedCount = subscribedMatches.size;
+  // Count upcoming matches
+  const upcomingCount = MATCHES.filter(m => {
+    if (!m.time) return false;
+    const utcDate = getUTCDate(m.date, m.time, m.venue);
+    return utcDate && utcDate.getTime() > Date.now();
+  }).length;
 
   return {
     permission,
-    subscribedMatches,
-    subscribedCount,
-    toggleMatchNotification,
-    isMatchSubscribed,
+    notificationsEnabled,
+    upcomingCount,
     requestPermission,
+    disableNotifications,
   };
 }

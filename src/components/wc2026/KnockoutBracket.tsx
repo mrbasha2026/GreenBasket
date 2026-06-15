@@ -5,13 +5,11 @@ import { TEAMS, MATCHES, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } fr
 import { MatchResult, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
-import { Trophy, Medal, Bell, BellRing } from 'lucide-react';
+import { Trophy, Medal } from 'lucide-react';
 import { TROPHY_IMG_SRC } from '@/lib/trophy-image';
 
 interface KnockoutBracketProps {
   onMatchClick: (matchId: number) => void;
-  isMatchSubscribed?: (matchId: number) => boolean;
-  onToggleNotif?: (matchId: number) => void;
 }
 
 function resolveTeamRef(
@@ -71,8 +69,6 @@ interface BracketCtx {
   thirdPlaceRanking: ReturnType<typeof calculateThirdPlaceRanking>;
   results: Record<number, MatchResult>;
   onMatchClick: (id: number) => void;
-  isMatchSubscribed: (matchId: number) => boolean;
-  onToggleNotif: (matchId: number) => void;
 }
 
 // ──────────────────────── BMatch - Desktop Match Card ────────────────────────
@@ -80,7 +76,6 @@ function BMatch({ matchId, ctx, roundColor }: { matchId: number; ctx: BracketCtx
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
   const result = ctx.results[matchId];
-  const hasNotif = ctx.isMatchSubscribed(matchId);
   const t1Ref = match.team1Ref || match.team1;
   const t2Ref = match.team2Ref || match.team2;
   const t1 = resolveTeamRef(t1Ref, ctx.standings, ctx.thirdPlaceRanking, ctx.results);
@@ -118,16 +113,7 @@ function BMatch({ matchId, ctx, roundColor }: { matchId: number; ctx: BracketCtx
       className={`cursor-pointer hover:shadow-md transition-all rounded-lg overflow-hidden bg-white border border-slate-200/80 hover:border-amber-300/60 hover:bg-amber-50/10 ${roundColor || ''}`}
       onClick={() => ctx.onMatchClick(matchId)}
     >
-      <div className="flex items-center justify-between">
-        {row(t1, t1Ref, t1Win, t1Lose, result?.homeGoals)}
-        <button
-          onClick={(e) => { e.stopPropagation(); ctx.onToggleNotif(matchId); }}
-          className="px-1 flex-shrink-0 hover:scale-110 transition-transform"
-          title={hasNotif ? 'إلغاء إشعار المباراة' : 'تفعيل إشعار المباراة'}
-        >
-          {hasNotif ? <BellRing className="w-3 h-3 text-emerald-500" /> : <Bell className="w-3 h-3 text-slate-300 hover:text-emerald-500" />}
-        </button>
-      </div>
+      {row(t1, t1Ref, t1Win, t1Lose, result?.homeGoals)}
       <div className="h-px bg-slate-100" />
       {row(t2, t2Ref, t2Win, t2Lose, result?.awayGoals)}
       {result && result.homePenalties !== undefined && result.awayPenalties !== undefined && (
@@ -144,7 +130,6 @@ function MMatch({ matchId, ctx }: { matchId: number; ctx: BracketCtx }) {
   const match = MATCHES.find(m => m.id === matchId);
   if (!match) return null;
   const result = ctx.results[matchId];
-  const hasNotif = ctx.isMatchSubscribed(matchId);
   const t1Ref = match.team1Ref || match.team1;
   const t2Ref = match.team2Ref || match.team2;
   const t1 = resolveTeamRef(t1Ref, ctx.standings, ctx.thirdPlaceRanking, ctx.results);
@@ -214,16 +199,6 @@ function MMatch({ matchId, ctx }: { matchId: number; ctx: BracketCtx }) {
           <span className="text-[8px] text-amber-600">ترجيح {result.homePenalties}-{result.awayPenalties}</span>
         </div>
       )}
-      {/* Notification bell row */}
-      <div className="flex items-center justify-center py-[2px] bg-slate-50/50 border-t border-slate-100/60">
-        <button
-          onClick={(e) => { e.stopPropagation(); ctx.onToggleNotif(matchId); }}
-          className="p-0.5 hover:scale-110 transition-transform"
-          title={hasNotif ? 'إلغاء إشعار المباراة' : 'تفعيل إشعار المباراة'}
-        >
-          {hasNotif ? <BellRing className="w-3 h-3 text-emerald-500" /> : <Bell className="w-3 h-3 text-slate-300 hover:text-emerald-500" />}
-        </button>
-      </div>
     </div>
   );
 }
@@ -434,18 +409,11 @@ function MobileBracket({ ctx }: { ctx: BracketCtx }) {
 }
 
 // ──────────────────────── Main Component ────────────────────────
-export function KnockoutBracket({ onMatchClick, isMatchSubscribed, onToggleNotif }: KnockoutBracketProps) {
+export function KnockoutBracket({ onMatchClick }: KnockoutBracketProps) {
   const { results } = useWC2026Store();
   const standings = useMemo(() => calculateGroupStandings(results), [results]);
   const thirdPlaceRanking = useMemo(() => calculateThirdPlaceRanking(standings), [standings]);
-  const ctx: BracketCtx = {
-    standings,
-    thirdPlaceRanking,
-    results,
-    onMatchClick,
-    isMatchSubscribed: isMatchSubscribed || (() => false),
-    onToggleNotif: onToggleNotif || (() => {}),
-  };
+  const ctx: BracketCtx = { standings, thirdPlaceRanking, results, onMatchClick };
   const showTP = thirdPlaceRanking.some(tp => tp.points > 0);
 
   return (

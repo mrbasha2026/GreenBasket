@@ -19,7 +19,7 @@ import { useMatchNotifications } from '@/hooks/useMatchNotifications';
 
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
-  const { permission, subscribedMatches, subscribedCount, toggleMatchNotification, isMatchSubscribed, requestPermission } = useMatchNotifications();
+  const { permission, notificationsEnabled, upcomingCount, requestPermission, disableNotifications } = useMatchNotifications();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
 
@@ -414,21 +414,29 @@ export default function Home() {
 
             {/* Reset & Notification buttons */}
             <div className="mr-auto flex items-center gap-2">
-              {/* Notification status */}
-              {permission === 'granted' && subscribedCount > 0 && (
+              {/* Notification toggle - auto for ALL matches */}
+              {notificationsEnabled ? (
                 <button
-                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#00A651]/10 text-[#00A651] text-xs font-medium"
-                  title={`${subscribedCount} إشعار مفعّل`}
+                  onClick={disableNotifications}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#00A651]/10 text-[#00A651] text-xs font-medium hover:bg-[#00A651]/20 transition-colors"
+                  title="الإشعارات مفعّلة لجميع المباريات - اضغط للإيقاف"
                 >
                   <BellRing className="w-3.5 h-3.5" />
-                  <span>{subscribedCount}</span>
+                  <span>إشعارات مفعّلة ({upcomingCount})</span>
                 </button>
-              )}
-              {permission !== 'granted' && (
+              ) : permission === 'denied' ? (
+                <button
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#E31837]/10 text-[#E31837] text-xs font-medium"
+                  title="تم حظر الإشعارات من إعدادات المتصفح"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>الإشعارات محظورة</span>
+                </button>
+              ) : (
                 <button
                   onClick={requestPermission}
                   className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted transition-colors"
-                  title="تفعيل الإشعارات"
+                  title="تفعيل إشعارات جميع المباريات تلقائياً"
                 >
                   <Bell className="w-3.5 h-3.5" />
                   <span>تفعيل الإشعارات</span>
@@ -564,8 +572,7 @@ export default function Home() {
                                 key={match.id}
                                 matchId={match.id}
                                 onMatchClick={handleMatchClick}
-                                isNotifSubscribed={isMatchSubscribed(match.id)}
-                                onToggleNotif={toggleMatchNotification}
+
                               />
                             ))}
                           </div>
@@ -610,8 +617,6 @@ export default function Home() {
                             key={match.id}
                             matchId={match.id}
                             onMatchClick={handleMatchClick}
-                            isNotifSubscribed={isMatchSubscribed(match.id)}
-                            onToggleNotif={toggleMatchNotification}
                           />
                         ))}
                       </div>
@@ -670,7 +675,7 @@ export default function Home() {
               <Trophy className="w-5 h-5 text-[#FFD700]" />
             </div>
 
-            <KnockoutBracket onMatchClick={handleMatchClick} isMatchSubscribed={isMatchSubscribed} onToggleNotif={toggleMatchNotification} />
+            <KnockoutBracket onMatchClick={handleMatchClick} />
           </div>
         )}
 
@@ -784,8 +789,6 @@ export default function Home() {
                           key={match.id}
                           matchId={match.id}
                           onMatchClick={handleMatchClick}
-                          isNotifSubscribed={isMatchSubscribed(match.id)}
-                          onToggleNotif={toggleMatchNotification}
                         />
                       ))}
                     </div>
@@ -808,8 +811,6 @@ export default function Home() {
                           key={match.id}
                           matchId={match.id}
                           onMatchClick={handleMatchClick}
-                          isNotifSubscribed={isMatchSubscribed(match.id)}
-                          onToggleNotif={toggleMatchNotification}
                         />
                       ))}
                     </div>

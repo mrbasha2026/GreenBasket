@@ -88,3 +88,25 @@ Stage Summary:
   - Favorite matches section (via MatchCard)
 - Desktop bracket: bell appears between team1 row and divider
 - Mobile bracket: bell appears as a small row at the bottom of each card
+---
+Task ID: 4
+Agent: Main Agent
+Task: Make notifications automatic for ALL matches (not per-match)
+
+Work Log:
+- Rewrote useMatchNotifications hook - now uses single boolean flag instead of per-match subscriptions
+- When user clicks "تفعيل الإشعارات", ALL 104 matches get scheduled automatically
+- Notifications fire 5 minutes before and at match start for every match
+- Removed bell icons from MatchCard, BMatch, MMatch components (no longer needed)
+- Added toggle button in navigation bar: green "إشعارات مفعّلة (104)" / "تفعيل الإشعارات"
+- State persists in localStorage - survives page reloads
+- Can disable notifications with one click
+- Build successful
+
+Stage Summary:
+- Notifications are now automatic for ALL matches - user only needs to approve once
+- No need to click bell on each match individually
+- Shows count of upcoming matches in the toggle button
+- Netlify daily anonymous deploy limit reached
+- GitHub push failed due to no credentials
+- Created deploy ZIP at /home/z/my-project/download/greenbasket-deploy.zip

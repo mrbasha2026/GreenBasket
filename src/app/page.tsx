@@ -16,6 +16,10 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing } from 'lucide-react';
 import { useMatchNotifications } from '@/hooks/useMatchNotifications';
+import { ThemeToggle } from '@/components/wc2026/ThemeToggle';
+import { CountdownTimer } from '@/components/wc2026/CountdownTimer';
+import { PredictionGame } from '@/components/wc2026/PredictionGame';
+import { StadiumInfo } from '@/components/wc2026/StadiumInfo';
 
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
@@ -307,7 +311,7 @@ export default function Home() {
   const hasAnyFavorites = favoriteTeams.size > 0 || favoriteMatches.size > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#002868]/5 via-white to-[#00A651]/5" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-b from-[#002868]/5 via-background to-[#00A651]/5" dir="rtl">
       {/* Hero Header */}
       <header className="relative overflow-hidden">
         {/* Background pattern */}
@@ -359,38 +363,61 @@ export default function Home() {
               <p className="text-white/70 text-xs">نتيجة مسجلة</p>
             </div>
           </div>
+
+          {/* Countdown Timer */}
+          <CountdownTimer />
         </div>
       </header>
 
       {/* Navigation Tabs */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border/50 shadow-sm">
+      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveTab('matches')}
               className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
                 activeTab === 'matches'
-                  ? 'border-[#002868] text-[#002868]'
+                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               ⚽ المباريات
             </button>
             <button
+              onClick={() => setActiveTab('prediction')}
+              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+                activeTab === 'prediction'
+                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🎯 لعبة التوقعات
+            </button>
+            <button
               onClick={() => setActiveTab('groups')}
               className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
                 activeTab === 'groups'
-                  ? 'border-[#002868] text-[#002868]'
+                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               🏅 المجموعات
             </button>
             <button
+              onClick={() => setActiveTab('stadiums')}
+              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+                activeTab === 'stadiums'
+                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🏟️ الملاعب
+            </button>
+            <button
               onClick={() => setActiveTab('knockout')}
               className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
                 activeTab === 'knockout'
-                  ? 'border-[#002868] text-[#002868]'
+                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -414,6 +441,7 @@ export default function Home() {
 
             {/* Reset & Notification buttons */}
             <div className="mr-auto flex items-center gap-2">
+              <ThemeToggle />
               {/* Notification toggle - auto for ALL matches */}
               {notificationsEnabled ? (
                 <button
@@ -633,6 +661,19 @@ export default function Home() {
           </div>
         )}
 
+        {/* PREDICTION GAME TAB */}
+        {activeTab === 'prediction' && (
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-7 bg-[#FFD700] rounded-full" />
+              <h2 className="text-xl font-bold text-[#002868] dark:text-blue-400">لعبة التوقعات</h2>
+              <Trophy className="w-5 h-5 text-[#FFD700]" />
+            </div>
+
+            <PredictionGame />
+          </div>
+        )}
+
         {/* GROUPS TAB */}
         {activeTab === 'groups' && (
           <div>
@@ -663,6 +704,18 @@ export default function Home() {
                 <li><span className="inline-block w-2 h-2 rounded-full bg-[#E31837]/50 mr-1" /> مستبعد</li>
               </ul>
             </div>
+          </div>
+        )}
+
+        {/* STADIUMS TAB */}
+        {activeTab === 'stadiums' && (
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-7 bg-[#00A651] rounded-full" />
+              <h2 className="text-xl font-bold text-[#002868] dark:text-blue-400">الملاعب والقنوات</h2>
+            </div>
+
+            <StadiumInfo />
           </div>
         )}
 

@@ -115,6 +115,36 @@ export const ROUND_NAMES_AR: Record<string, string> = {
   'final': 'النهائي',
 };
 
+export interface Venue {
+  name: string;
+  nameAr: string;
+  city: string;
+  cityAr: string;
+  country: string;
+  capacity: number;
+  lat: number;
+  lng: number;
+}
+
+export const VENUES: Venue[] = [
+  { name: 'Mexico City Stadium', nameAr: 'ملعب أزتيكا', city: 'Mexico City', cityAr: 'مكسيكو سيتي', country: 'MX', capacity: 87000, lat: 19.3022, lng: -99.1506 },
+  { name: 'Estadio Guadalajara', nameAr: 'ملعب غوادالاخارا', city: 'Guadalajara', cityAr: 'غوادالاخارا', country: 'MX', capacity: 49000, lat: 20.5889, lng: -103.3183 },
+  { name: 'Estadio Monterrey', nameAr: 'ملعب مونتيري', city: 'Monterrey', cityAr: 'مونتيري', country: 'MX', capacity: 53000, lat: 25.7753, lng: -100.3225 },
+  { name: 'Boston Stadium', nameAr: 'ملعب بوسطن', city: 'Boston', cityAr: 'بوسطن', country: 'US', capacity: 65000, lat: 42.0909, lng: -71.2643 },
+  { name: 'New York New Jersey Stadium', nameAr: 'ملعب نيويورك نيو جيرسي', city: 'New York', cityAr: 'نيويورك', country: 'US', capacity: 82500, lat: 40.8135, lng: -74.0745 },
+  { name: 'Philadelphia Stadium', nameAr: 'ملعب فيلادلفيا', city: 'Philadelphia', cityAr: 'فيلادلفيا', country: 'US', capacity: 69000, lat: 39.9008, lng: -75.1674 },
+  { name: 'Miami Stadium', nameAr: 'ملعب ميامي', city: 'Miami', cityAr: 'ميامي', country: 'US', capacity: 65000, lat: 25.9579, lng: -80.2389 },
+  { name: 'Atlanta Stadium', nameAr: 'ملعب أتلانتا', city: 'Atlanta', cityAr: 'أتلانتا', country: 'US', capacity: 71000, lat: 33.7555, lng: -84.4010 },
+  { name: 'Houston Stadium', nameAr: 'ملعب هيوستن', city: 'Houston', cityAr: 'هيوستن', country: 'US', capacity: 72000, lat: 29.6847, lng: -95.4107 },
+  { name: 'Dallas Stadium', nameAr: 'ملعب دالاس', city: 'Dallas', cityAr: 'دالاس', country: 'US', capacity: 80000, lat: 32.7473, lng: -97.0945 },
+  { name: 'Kansas City Stadium', nameAr: 'ملعب كانساس سيتي', city: 'Kansas City', cityAr: 'كانساس سيتي', country: 'US', capacity: 76000, lat: 39.0489, lng: -94.4839 },
+  { name: 'Los Angeles Stadium', nameAr: 'ملعب لوس أنجلوس', city: 'Los Angeles', cityAr: 'لوس أنجلوس', country: 'US', capacity: 70000, lat: 33.9536, lng: -118.3388 },
+  { name: 'San Francisco Bay Area Stadium', nameAr: 'ملعب سان فرانسيسكو', city: 'Santa Clara', cityAr: 'سانتا كلارا', country: 'US', capacity: 68000, lat: 37.4032, lng: -121.9698 },
+  { name: 'Seattle Stadium', nameAr: 'ملعب سياتل', city: 'Seattle', cityAr: 'سياتل', country: 'US', capacity: 69000, lat: 47.5952, lng: -122.3316 },
+  { name: 'Toronto Stadium', nameAr: 'ملعب تورنتو', city: 'Toronto', cityAr: 'تورنتو', country: 'CA', capacity: 45000, lat: 43.6347, lng: -79.4125 },
+  { name: 'BC Place Vancouver', nameAr: 'ملعب فانكوفر', city: 'Vancouver', cityAr: 'فانكوفر', country: 'CA', capacity: 54000, lat: 49.2768, lng: -123.1120 },
+];
+
 export const getTeamsInGroup = (group: string): string[] => {
   return Object.values(TEAMS)
     .filter(t => t.group === group)
@@ -263,7 +293,7 @@ export const THIRD_PLACE_ELIGIBLE_GROUPS: Record<string, string[]> = {
 export const resolveTeamRef = (
   ref: string,
   standings: Record<string, GroupStanding[]>,
-  thirdPlaceRanking: { group: string; team: string }[],
+  thirdPlaceRanking: { group: string; team: string; points: number }[],
   results: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }>,
 ): string | null => {
   // Group winner: "1A", "1B", etc.

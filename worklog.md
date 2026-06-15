@@ -110,3 +110,30 @@ Stage Summary:
 - Netlify daily anonymous deploy limit reached
 - GitHub push failed due to no credentials
 - Created deploy ZIP at /home/z/my-project/download/greenbasket-deploy.zip
+
+---
+Task ID: 1
+Agent: Main Agent + Full-Stack Developer Subagent
+Task: Add 4 major features to WC2026 website (Dark Mode, Countdown Timer, Prediction Game, Stadium Info)
+
+Work Log:
+- Added ThemeProvider from next-themes to layout.tsx
+- Created ThemeToggle.tsx component with Sun/Moon toggle and Arabic tooltips
+- Created CountdownTimer.tsx with live countdown to WC2026, Arabic-Indic digits, next match display
+- Created PredictionGame.tsx with scoring system (1/3 group, 2/5 R32/R16, 4/8 QF, 5/10 SF, 8/15 final), leaderboard, progress bar
+- Created StadiumInfo.tsx with 16 venue cards, TV channel info, expandable match lists
+- Updated wc2026-store.ts with predictions state + localStorage persistence
+- Added VENUES data array to wc2026-data.ts with 16 stadiums
+- Added 2 new tabs to page.tsx: "🎯 لعبة التوقعات" and "🏟️ الملاعب"
+- Fixed dark mode support: bg-white/95 → bg-background/95, via-white → via-background
+- Improved dark mode CSS variables in globals.css (deep navy instead of pure black)
+
+Stage Summary:
+- All 4 features implemented and verified via browser testing
+- Dark mode works correctly with toggle button
+- Countdown timer shows live countdown with Arabic-Indic digits
+- Prediction game has full scoring system, leaderboard, and inline prediction entry
+- Stadium info shows 16 venues with capacity, city, and match list
+- TV channels section shows beIN Sports and SSC Sport per round
+- No TypeScript errors in src/ files
+- Dev server running on port 3000, HTTP 200

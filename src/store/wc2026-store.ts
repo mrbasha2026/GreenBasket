@@ -4,6 +4,7 @@ import { MatchResult } from '@/lib/wc2026-logic';
 
 interface WC2026State {
   results: Record<number, MatchResult>;
+  predictions: Record<number, MatchResult>;
   activeTab: string;
   editingMatch: number | null;
   hydrated: boolean;
@@ -19,9 +20,12 @@ interface WC2026State {
   hydrate: () => void;
   toggleFavoriteTeam: (teamName: string) => void;
   toggleFavoriteMatch: (matchId: number) => void;
+  setPrediction: (matchId: number, result: MatchResult) => void;
+  clearPrediction: (matchId: number) => void;
 }
 
 const STORAGE_KEY = 'wc2026-results';
+const PREDICTIONS_KEY = 'wc2026-predictions';
 const FAVORITES_KEY = 'wc2026-favorites';
 const FAV_MATCHES_KEY = 'wc2026-fav-matches';
 
@@ -42,6 +46,28 @@ function saveResults(results: Record<number, MatchResult>) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function loadPredictions(): Record<number, MatchResult> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const stored = localStorage.getItem(PREDICTIONS_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return {};
+}
+
+function savePredictions(predictions: Record<number, MatchResult>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PREDICTIONS_KEY, JSON.stringify(predictions));
   } catch {
     // Ignore storage errors
   }
@@ -93,6 +119,7 @@ function saveFavoriteMatches(favorites: Set<number>) {
 
 export const useWC2026Store = create<WC2026State>((set) => ({
   results: {},
+  predictions: {},
   activeTab: 'matches',
   editingMatch: null,
   hydrated: false,
@@ -122,9 +149,10 @@ export const useWC2026Store = create<WC2026State>((set) => ({
   },
   hydrate: () => {
     const storedResults = loadResults();
+    const storedPredictions = loadPredictions();
     const storedFavorites = loadFavoriteTeams();
     const storedFavMatches = loadFavoriteMatches();
-    set({ results: storedResults, favoriteTeams: storedFavorites, favoriteMatches: storedFavMatches, hydrated: true });
+    set({ results: storedResults, predictions: storedPredictions, favoriteTeams: storedFavorites, favoriteMatches: storedFavMatches, hydrated: true });
   },
   toggleFavoriteTeam: (teamName) =>
     set((state) => {
@@ -147,5 +175,18 @@ export const useWC2026Store = create<WC2026State>((set) => ({
       }
       saveFavoriteMatches(newFavorites);
       return { favoriteMatches: newFavorites };
+    }),
+  setPrediction: (matchId, result) =>
+    set((state) => {
+      const newPredictions = { ...state.predictions, [matchId]: result };
+      savePredictions(newPredictions);
+      return { predictions: newPredictions };
+    }),
+  clearPrediction: (matchId) =>
+    set((state) => {
+      const newPredictions = { ...state.predictions };
+      delete newPredictions[matchId];
+      savePredictions(newPredictions);
+      return { predictions: newPredictions };
     }),
 }));

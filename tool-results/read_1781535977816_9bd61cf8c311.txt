@@ -1,0 +1,379 @@
+     1→// FIFA World Cup 2026 Tournament Data
+     2→// 48 teams, 12 groups (A-L), 104 total matches
+     3→
+     4→export interface Team {
+     5→  name: string;
+     6→  nameAr: string;
+     7→  flag: string; // emoji flag (fallback)
+     8→  flagCode: string; // ISO 3166-1 alpha-2 code for SVG flag
+     9→  group: string;
+    10→}
+    11→
+    12→export interface Match {
+    13→  id: number;
+    14→  date: string;
+    15→  time?: string; // match kick-off time in local timezone, e.g. "18:00"
+    16→  team1: string; // team name key
+    17→  team2: string; // team name key
+    18→  group?: string; // only for group stage
+    19→  venue: string;
+    20→  venueAr: string;
+    21→  round: 'group' | 'r32' | 'r16' | 'qf' | 'sf' | '3rd' | 'final';
+    22→  // For knockout matches, team1/team2 can be references
+    23→  team1Ref?: string; // e.g., "1A" = winner group A, "2A" = runner-up, "3ABC" = best 3rd from groups A/B/C
+    24→  team2Ref?: string;
+    25→}
+    26→
+    27→export interface GroupStanding {
+    28→  team: string;
+    29→  played: number;
+    30→  won: number;
+    31→  drawn: number;
+    32→  lost: number;
+    33→  goalsFor: number;
+    34→  goalsAgainst: number;
+    35→  goalDifference: number;
+    36→  points: number;
+    37→}
+    38→
+    39→// Team data with Arabic names and flags
+    40→export const TEAMS: Record<string, Team> = {
+    41→  'Mexico': { name: 'Mexico', nameAr: 'المكسيك', flag: '🇲🇽', flagCode: 'mx', group: 'A' },
+    42→  'South Africa': { name: 'South Africa', nameAr: 'جنوب أفريقيا', flag: '🇿🇦', flagCode: 'za', group: 'A' },
+    43→  'Korea Republic': { name: 'Korea Republic', nameAr: 'كوريا الجنوبية', flag: '🇰🇷', flagCode: 'kr', group: 'A' },
+    44→  'Czechia': { name: 'Czechia', nameAr: 'التشيك', flag: '🇨🇿', flagCode: 'cz', group: 'A' },
+    45→  'Canada': { name: 'Canada', nameAr: 'كندا', flag: '🇨🇦', flagCode: 'ca', group: 'B' },
+    46→  'Switzerland': { name: 'Switzerland', nameAr: 'سويسرا', flag: '🇨🇭', flagCode: 'ch', group: 'B' },
+    47→  'Qatar': { name: 'Qatar', nameAr: 'قطر', flag: '🇶🇦', flagCode: 'qa', group: 'B' },
+    48→  'Bosnia and Herzegovina': { name: 'Bosnia and Herzegovina', nameAr: 'البوسنة والهرسك', flag: '🇧🇦', flagCode: 'ba', group: 'B' },
+    49→  'Brazil': { name: 'Brazil', nameAr: 'البرازيل', flag: '🇧🇷', flagCode: 'br', group: 'C' },
+    50→  'Morocco': { name: 'Morocco', nameAr: 'المغرب', flag: '🇲🇦', flagCode: 'ma', group: 'C' },
+    51→  'Haiti': { name: 'Haiti', nameAr: 'هايتي', flag: '🇭🇹', flagCode: 'ht', group: 'C' },
+    52→  'Scotland': { name: 'Scotland', nameAr: 'اسكتلندا', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', flagCode: 'gb-sct', group: 'C' },
+    53→  'United States': { name: 'United States', nameAr: 'الولايات المتحدة', flag: '🇺🇸', flagCode: 'us', group: 'D' },
+    54→  'Paraguay': { name: 'Paraguay', nameAr: 'باراغواي', flag: '🇵🇾', flagCode: 'py', group: 'D' },
+    55→  'Australia': { name: 'Australia', nameAr: 'أستراليا', flag: '🇦🇺', flagCode: 'au', group: 'D' },
+    56→  'Türkiye': { name: 'Türkiye', nameAr: 'تركيا', flag: '🇹🇷', flagCode: 'tr', group: 'D' },
+    57→  'Germany': { name: 'Germany', nameAr: 'ألمانيا', flag: '🇩🇪', flagCode: 'de', group: 'E' },
+    58→  'Curaçao': { name: 'Curaçao', nameAr: 'كوراساو', flag: '🇨🇼', flagCode: 'cw', group: 'E' },
+    59→  'Côte d\'Ivoire': { name: 'Côte d\'Ivoire', nameAr: 'ساحل العاج', flag: '🇨🇮', flagCode: 'ci', group: 'E' },
+    60→  'Ecuador': { name: 'Ecuador', nameAr: 'الإكوادور', flag: '🇪🇨', flagCode: 'ec', group: 'E' },
+    61→  'Netherlands': { name: 'Netherlands', nameAr: 'هولندا', flag: '🇳🇱', flagCode: 'nl', group: 'F' },
+    62→  'Japan': { name: 'Japan', nameAr: 'اليابان', flag: '🇯🇵', flagCode: 'jp', group: 'F' },
+    63→  'Tunisia': { name: 'Tunisia', nameAr: 'تونس', flag: '🇹🇳', flagCode: 'tn', group: 'F' },
+    64→  'Sweden': { name: 'Sweden', nameAr: 'السويد', flag: '🇸🇪', flagCode: 'se', group: 'F' },
+    65→  'Belgium': { name: 'Belgium', nameAr: 'بلجيكا', flag: '🇧🇪', flagCode: 'be', group: 'G' },
+    66→  'Egypt': { name: 'Egypt', nameAr: 'مصر', flag: '🇪🇬', flagCode: 'eg', group: 'G' },
+    67→  'IR Iran': { name: 'IR Iran', nameAr: 'إيران', flag: '🇮🇷', flagCode: 'ir', group: 'G' },
+    68→  'New Zealand': { name: 'New Zealand', nameAr: 'نيوزيلندا', flag: '🇳🇿', flagCode: 'nz', group: 'G' },
+    69→  'Spain': { name: 'Spain', nameAr: 'إسبانيا', flag: '🇪🇸', flagCode: 'es', group: 'H' },
+    70→  'Cabo Verde': { name: 'Cabo Verde', nameAr: 'الرأس الأخضر', flag: '🇨🇻', flagCode: 'cv', group: 'H' },
+    71→  'Saudi Arabia': { name: 'Saudi Arabia', nameAr: 'السعودية', flag: '🇸🇦', flagCode: 'sa', group: 'H' },
+    72→  'Uruguay': { name: 'Uruguay', nameAr: 'الأوروغواي', flag: '🇺🇾', flagCode: 'uy', group: 'H' },
+    73→  'France': { name: 'France', nameAr: 'فرنسا', flag: '🇫🇷', flagCode: 'fr', group: 'I' },
+    74→  'Senegal': { name: 'Senegal', nameAr: 'السنغال', flag: '🇸🇳', flagCode: 'sn', group: 'I' },
+    75→  'Norway': { name: 'Norway', nameAr: 'النرويج', flag: '🇳🇴', flagCode: 'no', group: 'I' },
+    76→  'Iraq': { name: 'Iraq', nameAr: 'العراق', flag: '🇮🇶', flagCode: 'iq', group: 'I' },
+    77→  'Argentina': { name: 'Argentina', nameAr: 'الأرجنتين', flag: '🇦🇷', flagCode: 'ar', group: 'J' },
+    78→  'Algeria': { name: 'Algeria', nameAr: 'الجزائر', flag: '🇩🇿', flagCode: 'dz', group: 'J' },
+    79→  'Austria': { name: 'Austria', nameAr: 'النمسا', flag: '🇦🇹', flagCode: 'at', group: 'J' },
+    80→  'Jordan': { name: 'Jordan', nameAr: 'الأردن', flag: '🇯🇴', flagCode: 'jo', group: 'J' },
+    81→  'Portugal': { name: 'Portugal', nameAr: 'البرتغال', flag: '🇵🇹', flagCode: 'pt', group: 'K' },
+    82→  'Uzbekistan': { name: 'Uzbekistan', nameAr: 'أوزبكستان', flag: '🇺🇿', flagCode: 'uz', group: 'K' },
+    83→  'Colombia': { name: 'Colombia', nameAr: 'كولومبيا', flag: '🇨🇴', flagCode: 'co', group: 'K' },
+    84→  'Congo DR': { name: 'Congo DR', nameAr: 'الكونغو الديمقراطية', flag: '🇨🇩', flagCode: 'cd', group: 'K' },
+    85→  'England': { name: 'England', nameAr: 'إنجلترا', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', flagCode: 'gb-eng', group: 'L' },
+    86→  'Croatia': { name: 'Croatia', nameAr: 'كرواتيا', flag: '🇭🇷', flagCode: 'hr', group: 'L' },
+    87→  'Ghana': { name: 'Ghana', nameAr: 'غانا', flag: '🇬🇭', flagCode: 'gh', group: 'L' },
+    88→  'Panama': { name: 'Panama', nameAr: 'بنما', flag: '🇵🇦', flagCode: 'pa', group: 'L' },
+    89→};
+    90→
+    91→export const GROUP_NAMES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as const;
+    92→
+    93→export const GROUP_NAMES_AR: Record<string, string> = {
+    94→  'A': 'المجموعة A',
+    95→  'B': 'المجموعة B',
+    96→  'C': 'المجموعة C',
+    97→  'D': 'المجموعة D',
+    98→  'E': 'المجموعة E',
+    99→  'F': 'المجموعة F',
+   100→  'G': 'المجموعة G',
+   101→  'H': 'المجموعة H',
+   102→  'I': 'المجموعة I',
+   103→  'J': 'المجموعة J',
+   104→  'K': 'المجموعة K',
+   105→  'L': 'المجموعة L',
+   106→};
+   107→
+   108→export const ROUND_NAMES_AR: Record<string, string> = {
+   109→  'group': 'دور المجموعات',
+   110→  'r32': 'دور الـ 32',
+   111→  'r16': 'دور الـ 16',
+   112→  'qf': 'ربع النهائي',
+   113→  'sf': 'نصف النهائي',
+   114→  '3rd': 'مباراة المركز الثالث',
+   115→  'final': 'النهائي',
+   116→};
+   117→
+   118→export const getTeamsInGroup = (group: string): string[] => {
+   119→  return Object.values(TEAMS)
+   120→    .filter(t => t.group === group)
+   121→    .map(t => t.name);
+   122→};
+   123→
+   124→// All 104 matches with kick-off times
+   125→export const MATCHES: Match[] = [
+   126→  // GROUP STAGE - Matchday 1
+   127→  { id: 1, date: '2026-06-11', time: '14:00', team1: 'Mexico', team2: 'South Africa', group: 'A', venue: 'Mexico City Stadium', venueAr: 'ملعب مكسيكو سيتي', round: 'group' },
+   128→  { id: 2, date: '2026-06-11', time: '21:00', team1: 'Korea Republic', team2: 'Czechia', group: 'A', venue: 'Estadio Guadalajara', venueAr: 'ملعب غوادالاخارا', round: 'group' },
+   129→  { id: 3, date: '2026-06-12', time: '15:00', team1: 'Canada', team2: 'Bosnia and Herzegovina', group: 'B', venue: 'Toronto Stadium', venueAr: 'ملعب تورنتو', round: 'group' },
+   130→  { id: 4, date: '2026-06-12', time: '18:00', team1: 'United States', team2: 'Paraguay', group: 'D', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'group' },
+   131→  { id: 5, date: '2026-06-13', time: '21:00', team1: 'Haiti', team2: 'Scotland', group: 'C', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'group' },
+   132→  { id: 6, date: '2026-06-13', time: '21:00', team1: 'Australia', team2: 'Türkiye', group: 'D', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'group' },
+   133→  { id: 7, date: '2026-06-13', time: '18:00', team1: 'Brazil', team2: 'Morocco', group: 'C', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'group' },
+   134→  { id: 8, date: '2026-06-13', time: '12:00', team1: 'Qatar', team2: 'Switzerland', group: 'B', venue: 'San Francisco Bay Area Stadium', venueAr: 'ملعب سان فرانسيسكو', round: 'group' },
+   135→  { id: 9, date: '2026-06-14', time: '19:00', team1: 'Côte d\'Ivoire', team2: 'Ecuador', group: 'E', venue: 'Philadelphia Stadium', venueAr: 'ملعب فيلادلفيا', round: 'group' },
+   136→  { id: 10, date: '2026-06-14', time: '12:00', team1: 'Germany', team2: 'Curaçao', group: 'E', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'group' },
+   137→  { id: 11, date: '2026-06-14', time: '15:00', team1: 'Netherlands', team2: 'Japan', group: 'F', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'group' },
+   138→  { id: 12, date: '2026-06-14', time: '21:00', team1: 'Sweden', team2: 'Tunisia', group: 'F', venue: 'Estadio Monterrey', venueAr: 'ملعب مونتيري', round: 'group' },
+   139→  { id: 13, date: '2026-06-15', time: '18:00', team1: 'Saudi Arabia', team2: 'Uruguay', group: 'H', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: 'group' },
+   140→  { id: 14, date: '2026-06-15', time: '12:00', team1: 'Spain', team2: 'Cabo Verde', group: 'H', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'group' },
+   141→  { id: 15, date: '2026-06-15', time: '18:00', team1: 'IR Iran', team2: 'New Zealand', group: 'G', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'group' },
+   142→  { id: 16, date: '2026-06-15', time: '12:00', team1: 'Belgium', team2: 'Egypt', group: 'G', venue: 'Seattle Stadium', venueAr: 'ملعب سياتل', round: 'group' },
+   143→  { id: 17, date: '2026-06-16', time: '15:00', team1: 'France', team2: 'Senegal', group: 'I', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'group' },
+   144→  { id: 18, date: '2026-06-16', time: '18:00', team1: 'Iraq', team2: 'Norway', group: 'I', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'group' },
+   145→  { id: 19, date: '2026-06-16', time: '20:00', team1: 'Argentina', team2: 'Algeria', group: 'J', venue: 'Kansas City Stadium', venueAr: 'ملعب كانساس سيتي', round: 'group' },
+   146→  { id: 20, date: '2026-06-16', time: '21:00', team1: 'Austria', team2: 'Jordan', group: 'J', venue: 'San Francisco Bay Area Stadium', venueAr: 'ملعب سان فرانسيسكو', round: 'group' },
+   147→  { id: 21, date: '2026-06-18', time: '18:00', team1: 'Ghana', team2: 'Panama', group: 'L', venue: 'Toronto Stadium', venueAr: 'ملعب تورنتو', round: 'group' },
+   148→  { id: 22, date: '2026-06-17', time: '15:00', team1: 'England', team2: 'Croatia', group: 'L', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'group' },
+   149→  { id: 23, date: '2026-06-17', time: '12:00', team1: 'Portugal', team2: 'Congo DR', group: 'K', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'group' },
+   150→  { id: 24, date: '2026-06-17', time: '21:00', team1: 'Uzbekistan', team2: 'Colombia', group: 'K', venue: 'Mexico City Stadium', venueAr: 'ملعب مكسيكو سيتي', round: 'group' },
+   151→
+   152→  // GROUP STAGE - Matchday 2
+   153→  { id: 25, date: '2026-06-18', time: '12:00', team1: 'Czechia', team2: 'South Africa', group: 'A', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'group' },
+   154→  { id: 26, date: '2026-06-18', time: '12:00', team1: 'Switzerland', team2: 'Bosnia and Herzegovina', group: 'B', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'group' },
+   155→  { id: 27, date: '2026-06-18', time: '15:00', team1: 'Canada', team2: 'Qatar', group: 'B', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'group' },
+   156→  { id: 28, date: '2026-06-18', time: '20:00', team1: 'Mexico', team2: 'Korea Republic', group: 'A', venue: 'Estadio Guadalajara', venueAr: 'ملعب غوادالاخارا', round: 'group' },
+   157→  { id: 29, date: '2026-06-19', time: '20:30', team1: 'Brazil', team2: 'Haiti', group: 'C', venue: 'Philadelphia Stadium', venueAr: 'ملعب فيلادلفيا', round: 'group' },
+   158→  { id: 30, date: '2026-06-19', time: '18:00', team1: 'Scotland', team2: 'Morocco', group: 'C', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'group' },
+   159→  { id: 31, date: '2026-06-19', time: '20:00', team1: 'Türkiye', team2: 'Paraguay', group: 'D', venue: 'San Francisco Bay Area Stadium', venueAr: 'ملعب سان فرانسيسكو', round: 'group' },
+   160→  { id: 32, date: '2026-06-19', time: '12:00', team1: 'United States', team2: 'Australia', group: 'D', venue: 'Seattle Stadium', venueAr: 'ملعب سياتل', round: 'group' },
+   161→  { id: 33, date: '2026-06-20', time: '16:00', team1: 'Germany', team2: 'Côte d\'Ivoire', group: 'E', venue: 'Toronto Stadium', venueAr: 'ملعب تورنتو', round: 'group' },
+   162→  { id: 34, date: '2026-06-20', time: '19:00', team1: 'Ecuador', team2: 'Curaçao', group: 'E', venue: 'Kansas City Stadium', venueAr: 'ملعب كانساس سيتي', round: 'group' },
+   163→  { id: 35, date: '2026-06-20', time: '12:00', team1: 'Netherlands', team2: 'Sweden', group: 'F', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'group' },
+   164→  { id: 36, date: '2026-06-20', time: '23:00', team1: 'Tunisia', team2: 'Japan', group: 'F', venue: 'Estadio Monterrey', venueAr: 'ملعب مونتيري', round: 'group' },
+   165→  { id: 37, date: '2026-06-21', time: '21:00', team1: 'Uruguay', team2: 'Cabo Verde', group: 'H', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: 'group' },
+   166→  { id: 38, date: '2026-06-21', time: '12:00', team1: 'Spain', team2: 'Saudi Arabia', group: 'H', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'group' },
+   167→  { id: 39, date: '2026-06-21', time: '12:00', team1: 'Belgium', team2: 'IR Iran', group: 'G', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'group' },
+   168→  { id: 40, date: '2026-06-21', time: '18:00', team1: 'New Zealand', team2: 'Egypt', group: 'G', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'group' },
+   169→  { id: 41, date: '2026-06-22', time: '19:00', team1: 'Norway', team2: 'Senegal', group: 'I', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'group' },
+   170→  { id: 42, date: '2026-06-22', time: '16:00', team1: 'France', team2: 'Iraq', group: 'I', venue: 'Philadelphia Stadium', venueAr: 'ملعب فيلادلفيا', round: 'group' },
+   171→  { id: 43, date: '2026-06-22', time: '12:00', team1: 'Argentina', team2: 'Austria', group: 'J', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'group' },
+   172→  { id: 44, date: '2026-06-22', time: '20:00', team1: 'Jordan', team2: 'Algeria', group: 'J', venue: 'San Francisco Bay Area Stadium', venueAr: 'ملعب سان فرانسيسكو', round: 'group' },
+   173→  { id: 45, date: '2026-06-23', time: '16:00', team1: 'England', team2: 'Ghana', group: 'L', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'group' },
+   174→  { id: 46, date: '2026-06-23', time: '22:00', team1: 'Panama', team2: 'Croatia', group: 'L', venue: 'Toronto Stadium', venueAr: 'ملعب تورنتو', round: 'group' },
+   175→  { id: 47, date: '2026-06-23', time: '12:00', team1: 'Portugal', team2: 'Uzbekistan', group: 'K', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'group' },
+   176→  { id: 48, date: '2026-06-23', time: '21:00', team1: 'Colombia', team2: 'Congo DR', group: 'K', venue: 'Estadio Guadalajara', venueAr: 'ملعب غوادالاخارا', round: 'group' },
+   177→
+   178→  // GROUP STAGE - Matchday 3
+   179→  { id: 49, date: '2026-06-24', time: '18:00', team1: 'Scotland', team2: 'Brazil', group: 'C', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: 'group' },
+   180→  { id: 50, date: '2026-06-24', time: '18:00', team1: 'Morocco', team2: 'Haiti', group: 'C', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'group' },
+   181→  { id: 51, date: '2026-06-24', time: '12:00', team1: 'Switzerland', team2: 'Canada', group: 'B', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'group' },
+   182→  { id: 52, date: '2026-06-24', time: '12:00', team1: 'Bosnia and Herzegovina', team2: 'Qatar', group: 'B', venue: 'Seattle Stadium', venueAr: 'ملعب سياتل', round: 'group' },
+   183→  { id: 53, date: '2026-06-24', time: '20:00', team1: 'Czechia', team2: 'Mexico', group: 'A', venue: 'Mexico City Stadium', venueAr: 'ملعب مكسيكو سيتي', round: 'group' },
+   184→  { id: 54, date: '2026-06-24', time: '20:00', team1: 'South Africa', team2: 'Korea Republic', group: 'A', venue: 'Estadio Monterrey', venueAr: 'ملعب مونتيري', round: 'group' },
+   185→  { id: 55, date: '2026-06-25', time: '16:00', team1: 'Curaçao', team2: 'Côte d\'Ivoire', group: 'E', venue: 'Philadelphia Stadium', venueAr: 'ملعب فيلادلفيا', round: 'group' },
+   186→  { id: 56, date: '2026-06-25', time: '16:00', team1: 'Ecuador', team2: 'Germany', group: 'E', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'group' },
+   187→  { id: 57, date: '2026-06-25', time: '18:00', team1: 'Japan', team2: 'Sweden', group: 'F', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'group' },
+   188→  { id: 58, date: '2026-06-25', time: '18:00', team1: 'Tunisia', team2: 'Netherlands', group: 'F', venue: 'Kansas City Stadium', venueAr: 'ملعب كانساس سيتي', round: 'group' },
+   189→  { id: 59, date: '2026-06-25', time: '19:00', team1: 'Türkiye', team2: 'United States', group: 'D', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'group' },
+   190→  { id: 60, date: '2026-06-25', time: '19:00', team1: 'Paraguay', team2: 'Australia', group: 'D', venue: 'San Francisco Bay Area Stadium', venueAr: 'ملعب سان فرانسيسكو', round: 'group' },
+   191→  { id: 61, date: '2026-06-26', time: '15:00', team1: 'Norway', team2: 'France', group: 'I', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'group' },
+   192→  { id: 62, date: '2026-06-26', time: '15:00', team1: 'Senegal', team2: 'Iraq', group: 'I', venue: 'Toronto Stadium', venueAr: 'ملعب تورنتو', round: 'group' },
+   193→  { id: 63, date: '2026-06-26', time: '20:00', team1: 'Egypt', team2: 'IR Iran', group: 'G', venue: 'Seattle Stadium', venueAr: 'ملعب سياتل', round: 'group' },
+   194→  { id: 64, date: '2026-06-26', time: '20:00', team1: 'New Zealand', team2: 'Belgium', group: 'G', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'group' },
+   195→  { id: 65, date: '2026-06-26', time: '19:00', team1: 'Cabo Verde', team2: 'Saudi Arabia', group: 'H', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'group' },
+   196→  { id: 66, date: '2026-06-26', time: '19:00', team1: 'Uruguay', team2: 'Spain', group: 'H', venue: 'Estadio Guadalajara', venueAr: 'ملعب غوادالاخارا', round: 'group' },
+   197→  { id: 67, date: '2026-06-27', time: '20:00', team1: 'Panama', team2: 'England', group: 'L', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'group' },
+   198→  { id: 68, date: '2026-06-27', time: '20:00', team1: 'Croatia', team2: 'Ghana', group: 'L', venue: 'Philadelphia Stadium', venueAr: 'ملعب فيلادلفيا', round: 'group' },
+   199→  { id: 69, date: '2026-06-27', time: '22:00', team1: 'Algeria', team2: 'Austria', group: 'J', venue: 'Kansas City Stadium', venueAr: 'ملعب كانساس سيتي', round: 'group' },
+   200→  { id: 70, date: '2026-06-27', time: '22:00', team1: 'Jordan', team2: 'Argentina', group: 'J', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'group' },
+   201→  { id: 71, date: '2026-06-27', time: '20:30', team1: 'Colombia', team2: 'Portugal', group: 'K', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: 'group' },
+   202→  { id: 72, date: '2026-06-27', time: '20:30', team1: 'Congo DR', team2: 'Uzbekistan', group: 'K', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'group' },
+   203→
+   204→  // ROUND OF 32
+   205→  { id: 73, date: '2026-06-28', time: '21:00', team1: '2A', team2: '2B', team1Ref: '2A', team2Ref: '2B', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'r32' },
+   206→  { id: 74, date: '2026-06-29', time: '16:00', team1: '1E', team2: '3ABCDf', team1Ref: '1E', team2Ref: '3ABCDf', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'r32' },
+   207→  { id: 75, date: '2026-06-29', time: '19:00', team1: '1F', team2: '2C', team1Ref: '1F', team2Ref: '2C', venue: 'Estadio Monterrey', venueAr: 'ملعب مونتيري', round: 'r32' },
+   208→  { id: 76, date: '2026-06-29', time: '22:00', team1: '1C', team2: '2F', team1Ref: '1C', team2Ref: '2F', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'r32' },
+   209→  { id: 77, date: '2026-06-30', time: '16:00', team1: '1I', team2: '3CDFGH', team1Ref: '1I', team2Ref: '3CDFGH', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'r32' },
+   210→  { id: 78, date: '2026-06-30', time: '19:00', team1: '2E', team2: '2I', team1Ref: '2E', team2Ref: '2I', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'r32' },
+   211→  { id: 79, date: '2026-06-30', time: '22:00', team1: '1A', team2: '3CEfHI', team1Ref: '1A', team2Ref: '3CEfHI', venue: 'Mexico City Stadium', venueAr: 'ملعب مكسيكو سيتي', round: 'r32' },
+   212→  { id: 80, date: '2026-07-01', time: '16:00', team1: '1L', team2: '3EHIJK', team1Ref: '1L', team2Ref: '3EHIJK', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'r32' },
+   213→  { id: 81, date: '2026-07-01', time: '19:00', team1: '1D', team2: '3BEFIJ', team1Ref: '1D', team2Ref: '3BEFIJ', venue: 'San Francisco Bay Area Stadium', venueAr: 'ملعب سان فرانسيسكو', round: 'r32' },
+   214→  { id: 82, date: '2026-07-01', time: '22:00', team1: '1G', team2: '3AEHIJ', team1Ref: '1G', team2Ref: '3AEHIJ', venue: 'Seattle Stadium', venueAr: 'ملعب سياتل', round: 'r32' },
+   215→  { id: 83, date: '2026-07-02', time: '16:00', team1: '2K', team2: '2L', team1Ref: '2K', team2Ref: '2L', venue: 'Toronto Stadium', venueAr: 'ملعب تورنتو', round: 'r32' },
+   216→  { id: 84, date: '2026-07-02', time: '19:00', team1: '1H', team2: '2J', team1Ref: '1H', team2Ref: '2J', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'r32' },
+   217→  { id: 85, date: '2026-07-02', time: '22:00', team1: '1B', team2: '3EFGIJ', team1Ref: '1B', team2Ref: '3EFGIJ', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'r32' },
+   218→  { id: 86, date: '2026-07-03', time: '19:00', team1: '1J', team2: '2H', team1Ref: '1J', team2Ref: '2H', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: 'r32' },
+   219→  { id: 87, date: '2026-07-03', time: '22:00', team1: '1K', team2: '3DEIJL', team1Ref: '1K', team2Ref: '3DEIJL', venue: 'Kansas City Stadium', venueAr: 'ملعب كانساس سيتي', round: 'r32' },
+   220→  { id: 88, date: '2026-07-03', time: '22:00', team1: '2D', team2: '2G', team1Ref: '2D', team2Ref: '2G', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'r32' },
+   221→
+   222→  // ROUND OF 16
+   223→  { id: 89, date: '2026-07-04', time: '18:00', team1: 'W74', team2: 'W77', team1Ref: 'W74', team2Ref: 'W77', venue: 'Philadelphia Stadium', venueAr: 'ملعب فيلادلفيا', round: 'r16' },
+   224→  { id: 90, date: '2026-07-04', time: '21:00', team1: 'W73', team2: 'W75', team1Ref: 'W73', team2Ref: 'W75', venue: 'Houston Stadium', venueAr: 'ملعب هيوستن', round: 'r16' },
+   225→  { id: 91, date: '2026-07-05', time: '18:00', team1: 'W76', team2: 'W78', team1Ref: 'W76', team2Ref: 'W78', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'r16' },
+   226→  { id: 92, date: '2026-07-05', time: '21:00', team1: 'W79', team2: 'W80', team1Ref: 'W79', team2Ref: 'W80', venue: 'Mexico City Stadium', venueAr: 'ملعب مكسيكو سيتي', round: 'r16' },
+   227→  { id: 93, date: '2026-07-06', time: '18:00', team1: 'W83', team2: 'W84', team1Ref: 'W83', team2Ref: 'W84', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'r16' },
+   228→  { id: 94, date: '2026-07-06', time: '21:00', team1: 'W81', team2: 'W82', team1Ref: 'W81', team2Ref: 'W82', venue: 'Seattle Stadium', venueAr: 'ملعب سياتل', round: 'r16' },
+   229→  { id: 95, date: '2026-07-07', time: '18:00', team1: 'W86', team2: 'W88', team1Ref: 'W86', team2Ref: 'W88', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'r16' },
+   230→  { id: 96, date: '2026-07-07', time: '21:00', team1: 'W85', team2: 'W87', team1Ref: 'W85', team2Ref: 'W87', venue: 'BC Place Vancouver', venueAr: 'ملعب فانكوفر', round: 'r16' },
+   231→
+   232→  // QUARTER-FINALS
+   233→  { id: 97, date: '2026-07-09', time: '21:00', team1: 'W89', team2: 'W90', team1Ref: 'W89', team2Ref: 'W90', venue: 'Boston Stadium', venueAr: 'ملعب بوسطن', round: 'qf' },
+   234→  { id: 98, date: '2026-07-10', time: '21:00', team1: 'W93', team2: 'W94', team1Ref: 'W93', team2Ref: 'W94', venue: 'Los Angeles Stadium', venueAr: 'ملعب لوس أنجلوس', round: 'qf' },
+   235→  { id: 99, date: '2026-07-11', time: '18:00', team1: 'W91', team2: 'W92', team1Ref: 'W91', team2Ref: 'W92', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: 'qf' },
+   236→  { id: 100, date: '2026-07-11', time: '21:00', team1: 'W95', team2: 'W96', team1Ref: 'W95', team2Ref: 'W96', venue: 'Kansas City Stadium', venueAr: 'ملعب كانساس سيتي', round: 'qf' },
+   237→
+   238→  // SEMI-FINALS
+   239→  { id: 101, date: '2026-07-14', time: '21:00', team1: 'W97', team2: 'W98', team1Ref: 'W97', team2Ref: 'W98', venue: 'Dallas Stadium', venueAr: 'ملعب دالاس', round: 'sf' },
+   240→  { id: 102, date: '2026-07-15', time: '21:00', team1: 'W99', team2: 'W100', team1Ref: 'W99', team2Ref: 'W100', venue: 'Atlanta Stadium', venueAr: 'ملعب أتلانتا', round: 'sf' },
+   241→
+   242→  // THIRD PLACE
+   243→  { id: 103, date: '2026-07-18', time: '21:00', team1: 'L101', team2: 'L102', team1Ref: 'L101', team2Ref: 'L102', venue: 'Miami Stadium', venueAr: 'ملعب ميامي', round: '3rd' },
+   244→
+   245→  // FINAL
+   246→  { id: 104, date: '2026-07-19', time: '21:00', team1: 'W101', team2: 'W102', team1Ref: 'W101', team2Ref: 'W102', venue: 'New York New Jersey Stadium', venueAr: 'ملعب نيويورك نيو جيرسي', round: 'final' },
+   247→];
+   248→
+   249→// Mapping of 3rd place reference to eligible groups
+   250→export const THIRD_PLACE_ELIGIBLE_GROUPS: Record<string, string[]> = {
+   251→  '3ABCDf': ['A', 'B', 'C', 'D', 'F'],
+   252→  '3CDFGH': ['C', 'D', 'F', 'G', 'H'],
+   253→  '3CEfHI': ['C', 'E', 'F', 'H', 'I'],
+   254→  '3EHIJK': ['E', 'H', 'I', 'J', 'K'],
+   255→  '3BEFIJ': ['B', 'E', 'F', 'I', 'J'],
+   256→  '3AEHIJ': ['A', 'E', 'H', 'I', 'J'],
+   257→  '3EFGIJ': ['E', 'F', 'G', 'I', 'J'],
+   258→  '3DEIJL': ['D', 'E', 'I', 'J', 'L'],
+   259→};
+   260→
+   261→// Resolve team reference to actual team name
+   262→// e.g., "1A" -> group A winner, "2B" -> group B runner-up
+   263→export const resolveTeamRef = (
+   264→  ref: string,
+   265→  standings: Record<string, GroupStanding[]>,
+   266→  thirdPlaceRanking: { group: string; team: string }[],
+   267→  results: Record<number, { homeGoals: number; awayGoals: number; homePenalties?: number; awayPenalties?: number }>,
+   268→): string | null => {
+   269→  // Group winner: "1A", "1B", etc.
+   270→  const winnerMatch = ref.match(/^1([A-L])$/);
+   271→  if (winnerMatch) {
+   272→    const group = winnerMatch[1];
+   273→    const groupStandings = standings[group];
+   274→    if (groupStandings && groupStandings.length > 0 && groupStandings[0].played > 0) {
+   275→      return groupStandings[0].team;
+   276→    }
+   277→    return null;
+   278→  }
+   279→
+   280→  // Group runner-up: "2A", "2B", etc.
+   281→  const runnerUpMatch = ref.match(/^2([A-L])$/);
+   282→  if (runnerUpMatch) {
+   283→    const group = runnerUpMatch[1];
+   284→    const groupStandings = standings[group];
+   285→    if (groupStandings && groupStandings.length > 1 && groupStandings[1].played > 0) {
+   286→      return groupStandings[1].team;
+   287→    }
+   288→    return null;
+   289→  }
+   290→
+   291→  // Third place reference: "3ABCDf", "3CDFGH", etc.
+   292→  const thirdPlaceMatch = ref.match(/^3(.+)$/);
+   293→  if (thirdPlaceMatch) {
+   294→    const eligibleGroupsKey = ref;
+   295→    const eligibleGroups = THIRD_PLACE_ELIGIBLE_GROUPS[eligibleGroupsKey];
+   296→    if (!eligibleGroups) return null;
+   297→
+   298→    // Find the best 3rd place team from eligible groups (only if they've played matches)
+   299→    const eligibleThirdPlace = thirdPlaceRanking.filter(tp =>
+   300→      eligibleGroups.includes(tp.group) && tp.points > 0
+   301→    );
+   302→    if (eligibleThirdPlace.length > 0) {
+   303→      return eligibleThirdPlace[0].team;
+   304→    }
+   305→    return null;
+   306→  }
+   307→
+   308→  // Winner of a match: "W73", "W74", etc.
+   309→  const winnerOfMatch = ref.match(/^W(\d+)$/);
+   310→  if (winnerOfMatch) {
+   311→    const matchId = parseInt(winnerOfMatch[1]);
+   312→    const result = results[matchId];
+   313→    if (!result) return null;
+   314→    const match = MATCHES.find(m => m.id === matchId);
+   315→    if (!match) return null;
+   316→
+   317→    if (result.homeGoals > result.awayGoals) return match.team1;
+   318→    if (result.awayGoals > result.homeGoals) return match.team2;
+   319→    // Check penalties
+   320→    if (result.homePenalties !== undefined && result.awayPenalties !== undefined) {
+   321→      if (result.homePenalties > result.awayPenalties) return match.team1;
+   322→      if (result.awayPenalties > result.homePenalties) return match.team2;
+   323→    }
+   324→    return null;
+   325→  }
+   326→
+   327→  // Loser of a match: "L101", "L102", etc.
+   328→  const loserOfMatch = ref.match(/^L(\d+)$/);
+   329→  if (loserOfMatch) {
+   330→    const matchId = parseInt(loserOfMatch[1]);
+   331→    const result = results[matchId];
+   332→    if (!result) return null;
+   333→    const match = MATCHES.find(m => m.id === matchId);
+   334→    if (!match) return null;
+   335→
+   336→    if (result.homeGoals < result.awayGoals) return match.team1;
+   337→    if (result.awayGoals < result.homeGoals) return match.team2;
+   338→    // Check penalties
+   339→    if (result.homePenalties !== undefined && result.awayPenalties !== undefined) {
+   340→      if (result.homePenalties < result.awayPenalties) return match.team1;
+   341→      if (result.awayPenalties < result.homePenalties) return match.team2;
+   342→    }
+   343→    return null;
+   344→  }
+   345→
+   346→  return null;
+   347→};
+   348→
+   349→// Get display name for a team reference (Arabic)
+   350→export const getTeamRefDisplayName = (ref: string): string => {
+   351→  const winnerMatch = ref.match(/^1([A-L])$/);
+   352→  if (winnerMatch) {
+   353→    return `متصدّر المجموعة ${winnerMatch[1]}`;
+   354→  }
+   355→  const runnerUpMatch = ref.match(/^2([A-L])$/);
+   356→  if (runnerUpMatch) {
+   357→    return `وصيف المجموعة ${runnerUpMatch[1]}`;
+   358→  }
+   359→  const thirdPlaceMatch = ref.match(/^3(.+)$/);
+   360→  if (thirdPlaceMatch) {
+   361→    const eligibleGroups = THIRD_PLACE_ELIGIBLE_GROUPS[ref];
+   362→    if (!eligibleGroups) return `أفضل ثالث`;
+   363→    // Try to determine ranking number from the slot position
+   364→    const slots = ['3ABCDf','3CDFGH','3CEfHI','3EHIJK','3BEFIJ','3AEHIJ','3EFGIJ','3DEIJL'];
+   365→    const slotIndex = slots.indexOf(ref);
+   366→    const rankNum = slotIndex >= 0 ? slotIndex + 1 : '?';
+   367→    return `أفضل ثالث #${rankNum}`;
+   368→  }
+   369→  const winnerOfMatch = ref.match(/^W(\d+)$/);
+   370→  if (winnerOfMatch) {
+   371→    return `الفائز من مباراة ${winnerOfMatch[1]}`;
+   372→  }
+   373→  const loserOfMatch = ref.match(/^L(\d+)$/);
+   374→  if (loserOfMatch) {
+   375→    return `الخاسر من مباراة ${loserOfMatch[1]}`;
+   376→  }
+   377→  return ref;
+   378→};
+   379→

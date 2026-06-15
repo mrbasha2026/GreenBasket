@@ -7,11 +7,13 @@ import { TEAMS, MATCHES, GROUP_NAMES_AR, ROUND_NAMES_AR, THIRD_PLACE_ELIGIBLE_GR
 import { formatMatchSaudiDateAr, formatMatchLocalTime, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
-import { Star, Clock } from 'lucide-react';
+import { Star, Clock, Bell, BellRing } from 'lucide-react';
 
 interface MatchCardProps {
   matchId: number;
   onMatchClick: (matchId: number) => void;
+  isNotifSubscribed?: boolean;
+  onToggleNotif?: (matchId: number) => void;
 }
 
 // Resolve team ref to actual team name
@@ -90,7 +92,7 @@ function resolveTeamRefForCard(
   return null;
 }
 
-export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
+export function MatchCard({ matchId, onMatchClick, isNotifSubscribed, onToggleNotif }: MatchCardProps) {
   const { results, favoriteMatches, toggleFavoriteMatch } = useWC2026Store();
 
   // Calculate standings for resolving knockout team refs - MUST be before any early return (React Hooks rule)
@@ -104,6 +106,7 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
   const isKnockout = match.round !== 'group';
   const isFavorite = favoriteMatches.has(matchId);
   const hasResult = !!result;
+  const hasNotification = !!isNotifSubscribed;
 
   // For knockout matches, resolve team refs
   const team1Resolved = isKnockout && match.team1Ref
@@ -168,6 +171,23 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
             <Badge variant="secondary" className="text-xs bg-[#E31837]/10 text-[#E31837] hover:bg-[#E31837]/20 border-0">
               {ROUND_NAMES_AR[match.round]}
             </Badge>
+          )}
+          {/* Notification bell */}
+          {onToggleNotif && match.time && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleNotif(matchId);
+              }}
+              className="p-0.5 hover:scale-110 transition-transform"
+              title={hasNotification ? 'إلغاء إشعار المباراة' : 'تفعيل إشعار المباراة'}
+            >
+              {hasNotification ? (
+                <BellRing className="w-3.5 h-3.5 text-[#00A651]" />
+              ) : (
+                <Bell className="w-3.5 h-3.5 text-muted-foreground/50 hover:text-[#00A651]" />
+              )}
+            </button>
           )}
           <button
             onClick={(e) => {

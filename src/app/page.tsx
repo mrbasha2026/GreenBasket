@@ -14,10 +14,12 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock } from 'lucide-react';
+import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing } from 'lucide-react';
+import { useMatchNotifications } from '@/hooks/useMatchNotifications';
 
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
+  const { permission, subscribedMatches, subscribedCount, toggleMatchNotification, isMatchSubscribed, requestPermission } = useMatchNotifications();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
 
@@ -410,8 +412,28 @@ export default function Home() {
               )}
             </button>
 
-            {/* Reset button */}
+            {/* Reset & Notification buttons */}
             <div className="mr-auto flex items-center gap-2">
+              {/* Notification status */}
+              {permission === 'granted' && subscribedCount > 0 && (
+                <button
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#00A651]/10 text-[#00A651] text-xs font-medium"
+                  title={`${subscribedCount} إشعار مفعّل`}
+                >
+                  <BellRing className="w-3.5 h-3.5" />
+                  <span>{subscribedCount}</span>
+                </button>
+              )}
+              {permission !== 'granted' && (
+                <button
+                  onClick={requestPermission}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted transition-colors"
+                  title="تفعيل الإشعارات"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>تفعيل الإشعارات</span>
+                </button>
+              )}
               {completedMatches > 0 && (
                 <Button
                   variant="ghost"
@@ -542,6 +564,8 @@ export default function Home() {
                                 key={match.id}
                                 matchId={match.id}
                                 onMatchClick={handleMatchClick}
+                                isNotifSubscribed={isMatchSubscribed(match.id)}
+                                onToggleNotif={toggleMatchNotification}
                               />
                             ))}
                           </div>
@@ -586,6 +610,8 @@ export default function Home() {
                             key={match.id}
                             matchId={match.id}
                             onMatchClick={handleMatchClick}
+                            isNotifSubscribed={isMatchSubscribed(match.id)}
+                            onToggleNotif={toggleMatchNotification}
                           />
                         ))}
                       </div>
@@ -758,6 +784,8 @@ export default function Home() {
                           key={match.id}
                           matchId={match.id}
                           onMatchClick={handleMatchClick}
+                          isNotifSubscribed={isMatchSubscribed(match.id)}
+                          onToggleNotif={toggleMatchNotification}
                         />
                       ))}
                     </div>
@@ -780,6 +808,8 @@ export default function Home() {
                           key={match.id}
                           matchId={match.id}
                           onMatchClick={handleMatchClick}
+                          isNotifSubscribed={isMatchSubscribed(match.id)}
+                          onToggleNotif={toggleMatchNotification}
                         />
                       ))}
                     </div>

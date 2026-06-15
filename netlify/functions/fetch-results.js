@@ -171,20 +171,50 @@ exports.handler = async (event) => {
     }
 
     // === Date-based fixtures mode ===
-    let url = `${API_BASE}/fixtures?league=${leagueId}&season=${season}`;
-    if (date) url += `&date=${date}`;
+    // IMPORTANT: Free plans don't support league+season=2026 together.
+    // Instead, we use date-based queries WITHOUT season, then filter for World Cup (league=1)
+    let url;
+    if (date) {
+      // Use date-only query (works on free plan), then filter for World Cup league
+      url = `${API_BASE}/fixtures?date=${date}`;
+    } else {
+      // Fallback: try league+season first
+      url = `${API_BASE}/fixtures?league=${leagueId}&season=${season}`;
+    }
 
     const mainRes = await apiFetch(url, apiKey);
     
     // Check if season is not accessible (free plan limitation)
-    if (mainRes.data?.errors?.plan) {
-      return errorResponse('SEASON_NOT_ACCESSIBLE', `الخطة المجانية لا تدعم موسم ${season}. ` + mainRes.data.errors.plan);
+    if (mainRes.data?.errors?.plan || mainRes.data?.errors?.season) {
+      // If league+season failed, try date-only approach as fallback
+      if (date && !url.includes('date=')) {
+        const fallbackUrl = `${API_BASE}/fixtures?date=${date}`;
+        const fallbackRes = await apiFetch(fallbackUrl, apiKey);
+        if (fallbackRes.data && !fallbackRes.error) {
+          // Filter for World Cup league only
+          const wcFixtures = (fallbackRes.data.response || []).filter(f => f.league?.id === parseInt(leagueId));
+          const fixtures = wcFixtures.map(mapFixture);
+          
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ success: true, count: fixtures.length, fixtures, standings: null }),
+          };
+        }
+      }
+      return errorResponse('SEASON_NOT_ACCESSIBLE', `الخطة المجانية لا تدعم موسم ${season}. ` + (mainRes.data?.errors?.plan || mainRes.data?.errors?.season || ''));
     }
     
     if (mainRes.error) return errorResponse('API_ERROR', `خطأ من API: ${mainRes.error}`);
     if (!mainRes.data) return errorResponse('API_ERROR', 'لا توجد بيانات من API');
 
-    const fixtures = (mainRes.data.response || []).map(mapFixture);
+    // If we used date-only query, filter for World Cup league
+    let allFixtures = mainRes.data.response || [];
+    if (date && allFixtures.length > 0 && allFixtures[0].league?.id !== parseInt(leagueId)) {
+      // Date-only query returns all leagues - filter for World Cup
+      allFixtures = allFixtures.filter(f => f.league?.id === parseInt(leagueId));
+    }
+    const fixtures = allFixtures.map(mapFixture);
 
     // Fetch standings if requested
     let standings = null;

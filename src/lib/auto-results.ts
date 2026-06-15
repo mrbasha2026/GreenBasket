@@ -201,7 +201,13 @@ async function directApiFetch(endpoint: string): Promise<any> {
     },
   });
   if (!response.ok) return null;
-  return response.json();
+  const data = await response.json();
+  // Check for API-level errors
+  if (data.errors && Object.keys(data.errors).length > 0) {
+    console.error('[auto-results] API errors:', data.errors);
+    return null;
+  }
+  return data;
 }
 
 function mapDirectFixture(fixture: any): APIFixture {
@@ -271,12 +277,23 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
   }
 
   try {
-    let endpoint = `/fixtures?league=1&season=2026`;
-    if (date) endpoint += `&date=${date}`;
+    // IMPORTANT: Free plans don't support league+season=2026 together.
+    // Use date-only query, then filter for World Cup (league=1) locally
+    let endpoint: string;
+    if (date) {
+      endpoint = `/fixtures?date=${date}`;
+    } else {
+      endpoint = `/fixtures?league=1&season=2026`;
+    }
     const data = await directApiFetch(endpoint);
     if (!data) return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
 
-    const fixtures = (data.response || []).map(mapDirectFixture);
+    // If date-based query, filter for World Cup league only
+    let rawFixtures = data.response || [];
+    if (date && rawFixtures.length > 0) {
+      rawFixtures = rawFixtures.filter((f: any) => f.league?.id === 1);
+    }
+    const fixtures = rawFixtures.map(mapDirectFixture);
 
     // Fetch standings if requested
     let standings = null;
@@ -323,14 +340,21 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
   if (!apiKey) return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED' };
 
   try {
-    // Get today's fixtures and filter for live
-    const data = await directApiFetch('/fixtures?live=all&league=1&season=2026');
+    // Free plans don't support live=all with season=2026
+    // Use date-based query and filter for live World Cup matches
+    const now = new Date();
+    const today = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' });
+    const data = await directApiFetch(`/fixtures?date=${today}`);
     if (!data) return { success: false, count: 0, fixtures: [], error: 'API_ERROR' };
 
-    const fixtures = (data.response || []).map(mapDirectFixture);
+    // Filter for World Cup league AND live status
+    const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
+    const wcLive = (data.response || [])
+      .filter((f: any) => f.league?.id === 1 && liveStatuses.includes(f.fixture?.status?.short))
+      .map(mapDirectFixture);
 
     // Also fetch events for each live fixture (up to 5)
-    for (const fixture of fixtures.slice(0, 5)) {
+    for (const fixture of wcLive.slice(0, 5)) {
       try {
         const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixture.id}`);
         if (eventsData?.response) {
@@ -347,7 +371,7 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
       } catch { /* Skip events for this fixture */ }
     }
 
-    return { success: true, count: fixtures.length, fixtures };
+    return { success: true, count: wcLive.length, fixtures: wcLive };
   } catch (error) {
     console.error('[auto-results] Direct live fetch failed:', error);
     return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR' };

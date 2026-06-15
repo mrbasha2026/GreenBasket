@@ -91,9 +91,54 @@ exports.handler = async (event) => {
     const includeLineups = params.lineups === 'true';
     const includeStats = params.stats === 'true';
 
-    // Fetch live fixtures
-    const url = `${API_BASE}/fixtures?live=all&league=${leagueId}&season=${season}`;
-    const mainRes = await apiFetch(url, apiKey);
+    // Fetch live fixtures - try league+season first, fallback to date-based
+    let url = `${API_BASE}/fixtures?live=all&league=${leagueId}&season=${season}`;
+    let mainRes = await apiFetch(url, apiKey);
+    
+    // If season not accessible on free plan, try date-based approach
+    if (mainRes.data?.errors?.plan || mainRes.data?.errors?.season || mainRes.error) {
+      // Fallback: get today's fixtures and filter for live + World Cup
+      const today = new Date().toISOString().split('T')[0];
+      const fallbackUrl = `${API_BASE}/fixtures?date=${today}`;
+      const fallbackRes = await apiFetch(fallbackUrl, apiKey);
+      if (fallbackRes.data?.response) {
+        // Filter for World Cup league AND live status
+        const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
+        const wcLive = fallbackRes.data.response.filter(f => 
+          f.league?.id === parseInt(leagueId) && liveStatuses.includes(f.fixture?.status?.short)
+        );
+        // Return as if it was a live query
+        const fixtures = wcLive.map(mapFixture);
+        
+        // For live matches, also fetch events
+        const fixturesWithDetails = [];
+        for (const fixture of fixtures) {
+          const enhanced = { ...fixture, events: [], lineups: [], statistics: [] };
+          if (includeEvents && fixtures.length <= 5) {
+            const eventsRes = await apiFetch(`${API_BASE}/fixtures/events?fixture=${fixture.id}`, apiKey);
+            if (eventsRes.data?.response) {
+              enhanced.events = eventsRes.data.response.map(e => ({
+                time: { elapsed: e.time.elapsed, extra: e.time.extra },
+                type: e.type,
+                detail: e.detail,
+                team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
+                player: { name: e.player.name, id: e.player.id },
+                assist: { name: e.assist.name, id: e.assist.id },
+                comments: e.comments,
+              }));
+            }
+          }
+          fixturesWithDetails.push(enhanced);
+        }
+        
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ success: true, count: fixturesWithDetails.length, fixtures: fixturesWithDetails }),
+        };
+      }
+    }
+    
     if (mainRes.error) return errorResponse('API_ERROR', `خطأ من API: ${mainRes.error}`);
     if (!mainRes.data) return errorResponse('API_ERROR', 'لا توجد بيانات من API');
 

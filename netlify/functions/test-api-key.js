@@ -2,10 +2,6 @@ exports.handler = async (event) => {
   const params = event.queryStringParameters || {};
   const apiKey = params.apiKey;
   
-  // Set overall timeout
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  
   if (!apiKey) {
     return {
       statusCode: 200,
@@ -14,153 +10,90 @@ exports.handler = async (event) => {
     };
   }
 
-  // Try api-sports.io first
+  // Try api-sports.io first (with 8s timeout)
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    
     const response = await fetch('https://v3.football.api-sports.io/status', {
       method: 'GET',
       headers: { 'x-apisports-key': apiKey },
       signal: controller.signal,
     });
-
-    clearTimeout(timeout);
-
-    if (response.status === 401) {
-      // Key format is wrong for api-sports.io, try RapidAPI
-      return await testRapidApi(apiKey);
-    }
-    
-    if (response.status === 403) {
-      // Check if it's "not subscribed" or just wrong key
-      let body = '';
-      try { body = await response.text(); } catch {}
-      if (body.includes('not subscribed')) {
-        // Key is valid format but not subscribed - try RapidAPI
-        return await testRapidApi(apiKey);
-      }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ valid: false, error: 'المفتاح غير مشترك في API-Football. فعّل الاشتراك المجاني على api-sports.io أو جرب RapidAPI' }),
-      };
-    }
-
-    if (response.status === 429) {
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ valid: true, accountInfo: { plan: 'مجاني', requestsToday: '100+', requestsLimit: '100/يوم' } }),
-      };
-    }
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await response.json();
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        const errMsg = Object.values(data.errors).join(', ');
-        if (errMsg.includes('not subscribed') || errMsg.includes('plan')) {
-          return await testRapidApi(apiKey);
-        }
+      if (!data.errors || Object.keys(data.errors || {}).length === 0) {
+        const account = data.response?.account;
+        const subscription = data.response?.subscription;
+        const requests = data.response?.requests;
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify({ valid: false, error: errMsg }),
+          body: JSON.stringify({
+            valid: true, detectedType: 'apisports',
+            accountInfo: { firstName: account?.firstname, lastName: account?.lastname, plan: subscription?.plan, requestsToday: requests?.current, requestsLimit: requests?.limit_day },
+          }),
         };
       }
-
-      const account = data.response?.account;
-      const subscription = data.response?.subscription;
-      const requests = data.response?.requests;
-
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({
-          valid: true,
-          detectedType: 'apisports',
-          accountInfo: {
-            firstName: account?.firstname,
-            lastName: account?.lastname,
-            plan: subscription?.plan,
-            endDate: subscription?.end,
-            requestsToday: requests?.current,
-            requestsLimit: requests?.limit_day,
-          },
-        }),
-      };
+      const errMsg = Object.values(data.errors).join(', ');
+      if (errMsg.includes('not subscribed')) {
+        // Try RapidAPI
+        return await tryRapidApi(apiKey);
+      }
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ valid: false, error: errMsg }) };
+    }
+    
+    if (response.status === 401) return await tryRapidApi(apiKey);
+    if (response.status === 403) {
+      let body = '';
+      try { body = await response.text(); } catch {}
+      if (body.includes('not subscribed')) return await tryRapidApi(apiKey);
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ valid: false, error: 'المفتاح غير مفعّل. فعّل الاشتراك المجاني على api-sports.io أو استخدم RapidAPI' }) };
+    }
+    if (response.status === 429) {
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ valid: true, accountInfo: { plan: 'مجاني', requestsToday: '100+', requestsLimit: '100/يوم' } }) };
     }
   } catch (err) {
-    clearTimeout(timeout);
-    // Network error or abort - try RapidAPI
-    try {
-      return await testRapidApi(apiKey);
-    } catch {}
+    // Timeout or network error - try RapidAPI
+    return await tryRapidApi(apiKey);
   }
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ valid: false, error: 'لا يمكن الاتصال بخادم API. تحقق من الإنترنت.' }),
-  };
+  return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ valid: false, error: 'لا يمكن التحقق من المفتاح' }) };
 };
 
-async function testRapidApi(apiKey) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  
+async function tryRapidApi(apiKey) {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    
     const response = await fetch('https://api-football-v1.p.rapidapi.com/v3/status', {
       method: 'GET',
       headers: { 'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com' },
       signal: controller.signal,
     });
-    
-    clearTimeout(timeout);
-
-    if (response.status === 401 || response.status === 403) {
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({ valid: false, error: 'مفتاح API غير صحيح لـ api-sports.io و RapidAPI. تحقق من نسخ المفتاح بالكامل.' }),
-      };
-    }
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await response.json();
-      if (data.errors && Object.keys(data.errors).length > 0) {
+      if (!data.errors || Object.keys(data.errors || {}).length === 0) {
+        const account = data.response?.account;
+        const subscription = data.response?.subscription;
+        const requests = data.response?.requests;
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify({ valid: false, error: Object.values(data.errors).join(', ') }),
+          body: JSON.stringify({
+            valid: true, detectedType: 'rapidapi',
+            accountInfo: { firstName: account?.firstname, lastName: account?.lastname, plan: subscription?.plan, requestsToday: requests?.current, requestsLimit: requests?.limit_day },
+          }),
         };
       }
-
-      const account = data.response?.account;
-      const subscription = data.response?.subscription;
-      const requests = data.response?.requests;
-
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({
-          valid: true,
-          detectedType: 'rapidapi',
-          accountInfo: {
-            firstName: account?.firstname,
-            lastName: account?.lastname,
-            plan: subscription?.plan,
-            endDate: subscription?.end,
-            requestsToday: requests?.current,
-            requestsLimit: requests?.limit_day,
-          },
-        }),
-      };
     }
-  } catch (err) {
-    clearTimeout(timeout);
-  }
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    body: JSON.stringify({ valid: false, error: 'مفتاح API غير صحيح. تحقق من المفتاح وحاول مرة أخرى.' }),
-  };
+    if (response.status === 401 || response.status === 403) {
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ valid: false, error: 'مفتاح API غير صحيح لـ api-sports.io و RapidAPI. تحقق من نسخ المفتاح بالكامل' }) };
+    }
+  } catch {}
+  return { statusCode: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ valid: false, error: 'لا يمكن التحقق من المفتاح. تحقق من الإنترنت وحاول مرة أخرى' }) };
 }

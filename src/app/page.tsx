@@ -20,6 +20,7 @@ import { ThemeToggle } from '@/components/wc2026/ThemeToggle';
 import { CountdownTimer } from '@/components/wc2026/CountdownTimer';
 import { PredictionGame } from '@/components/wc2026/PredictionGame';
 import { StadiumInfo } from '@/components/wc2026/StadiumInfo';
+import { LiveMatches } from '@/components/wc2026/LiveMatches';
 
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
@@ -374,6 +375,16 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             <button
+              onClick={() => setActiveTab('live')}
+              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+                activeTab === 'live'
+                  ? 'border-red-500 text-red-500'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🔴 اليوم
+            </button>
+            <button
               onClick={() => setActiveTab('matches')}
               className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
                 activeTab === 'matches'
@@ -492,6 +503,19 @@ export default function Home() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* LIVE / TODAY TAB */}
+        {activeTab === 'live' && (
+          <div>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-1.5 h-7 bg-red-500 rounded-full" />
+              <h2 className="text-xl font-bold text-[#002868] dark:text-blue-400">مباريات اليوم</h2>
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+            </div>
+
+            <LiveMatches onMatchClick={handleMatchClick} />
+          </div>
+        )}
+
         {/* MATCHES TAB */}
         {activeTab === 'matches' && (
           <div className="space-y-8">

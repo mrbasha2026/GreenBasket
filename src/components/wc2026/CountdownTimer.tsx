@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { MATCHES, TEAMS } from '@/lib/wc2026-data';
+import { TeamFlag } from '@/components/wc2026/TeamFlag';
 import { Clock } from 'lucide-react';
 
 // Arabic-Indic digits
@@ -180,7 +181,7 @@ export function CountdownTimer() {
 
           <div className="flex items-center justify-center gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{TEAMS[nextMatch.team1]?.flag || '🏳️'}</span>
+              <TeamFlag teamName={nextMatch.team1} size="lg" />
               <span className="text-white text-sm font-bold">
                 {TEAMS[nextMatch.team1]?.nameAr || nextMatch.team1}
               </span>
@@ -190,7 +191,7 @@ export function CountdownTimer() {
               <span className="text-white text-sm font-bold">
                 {TEAMS[nextMatch.team2]?.nameAr || nextMatch.team2}
               </span>
-              <span className="text-lg">{TEAMS[nextMatch.team2]?.flag || '🏳️'}</span>
+              <TeamFlag teamName={nextMatch.team2} size="lg" />
             </div>
           </div>
 

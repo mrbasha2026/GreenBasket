@@ -1,0 +1,905 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { useState, useEffect, useMemo, useCallback } from 'react';
+     4→     4→import { useWC2026Store } from '@/store/wc2026-store';
+     5→     5→import { MATCHES, TEAMS, GROUP_NAMES, GROUP_NAMES_AR, ROUND_NAMES_AR } from '@/lib/wc2026-data';
+     6→     6→import { calculateGroupStandings, formatDateAr, formatTimeAr, getMatchSaudiDate, formatMatchSaudiDateAr } from '@/lib/wc2026-logic';
+     7→     7→import { MatchCard } from '@/components/wc2026/MatchCard';
+     8→     8→import { GroupTable } from '@/components/wc2026/GroupTable';
+     9→     9→import { KnockoutBracket } from '@/components/wc2026/KnockoutBracket';
+    10→    10→import { ScoreDialog } from '@/components/wc2026/ScoreDialog';
+    11→    11→import { TeamFlag } from '@/components/wc2026/TeamFlag';
+    12→    12→import { Button } from '@/components/ui/button';
+    13→    13→import { Badge } from '@/components/ui/badge';
+    14→    14→import { Input } from '@/components/ui/input';
+    15→    15→import { Card } from '@/components/ui/card';
+    16→    16→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    17→    17→import { Trophy, RotateCcw, ChevronDown, ChevronUp, Search, Star, Heart, Clock, Bell, BellRing } from 'lucide-react';
+    18→    18→import { useMatchNotifications } from '@/hooks/useMatchNotifications';
+    19→    19→import { ThemeToggle } from '@/components/wc2026/ThemeToggle';
+    20→    20→import { CountdownTimer } from '@/components/wc2026/CountdownTimer';
+    21→    21→import { PredictionGame } from '@/components/wc2026/PredictionGame';
+    22→    22→import { StadiumInfo } from '@/components/wc2026/StadiumInfo';
+    23→    23→
+    24→    24→export default function Home() {
+    25→    25→  const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
+    26→    26→  const { permission, notificationsEnabled, upcomingCount, requestPermission, disableNotifications } = useMatchNotifications();
+    27→    27→  const [dialogOpen, setDialogOpen] = useState(false);
+    28→    28→  const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
+    29→    29→
+    30→    30→  // Search/filter state
+    31→    31→  const [searchQuery, setSearchQuery] = useState('');
+    32→    32→  const [filterGroup, setFilterGroup] = useState('all');
+    33→    33→  const [filterRound, setFilterRound] = useState('all');
+    34→    34→  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    35→    35→  const [filterStatus, setFilterStatus] = useState<'all' | 'registered' | 'unregistered'>('all');
+    36→    36→
+    37→    37→  // Hydrate from localStorage on mount + register service worker for PWA
+    38→    38→  useEffect(() => {
+    39→    39→    hydrate();
+    40→    40→    // Register service worker for PWA install support
+    41→    41→    if ('serviceWorker' in navigator) {
+    42→    42→      navigator.serviceWorker.register('/sw.js').catch(() => {
+    43→    43→        // SW registration failed - not critical
+    44→    44→      });
+    45→    45→    }
+    46→    46→  }, [hydrate]);
+    47→    47→
+    48→    48→  const standings = useMemo(() => calculateGroupStandings(results), [results]);
+    49→    49→
+    50→    50→  // Filter matches based on search and filters
+    51→    51→  const filterMatches = useCallback((matches: typeof MATCHES) => {
+    52→    52→    return matches.filter(match => {
+    53→    53→      // Search by team name
+    54→    54→      if (searchQuery) {
+    55→    55→        const query = searchQuery.toLowerCase();
+    56→    56→        const team1Ar = TEAMS[match.team1]?.nameAr?.toLowerCase() || '';
+    57→    57→        const team1En = match.team1?.toLowerCase() || '';
+    58→    58→        const team2Ar = TEAMS[match.team2]?.nameAr?.toLowerCase() || '';
+    59→    59→        const team2En = match.team2?.toLowerCase() || '';
+    60→    60→        if (
+    61→    61→          !team1Ar.includes(query) &&
+    62→    62→          !team1En.includes(query) &&
+    63→    63→          !team2Ar.includes(query) &&
+    64→    64→          !team2En.includes(query)
+    65→    65→        ) {
+    66→    66→          return false;
+    67→    67→        }
+    68→    68→      }
+    69→    69→      // Filter by group
+    70→    70→      if (filterGroup !== 'all') {
+    71→    71→        if (match.round === 'group') {
+    72→    72→          if (match.group !== filterGroup) return false;
+    73→    73→        } else {
+    74→    74→          // Knockout matches don't belong to a group
+    75→    75→          return false;
+    76→    76→        }
+    77→    77→      }
+    78→    78→      // Filter by round
+    79→    79→      if (filterRound !== 'all') {
+    80→    80→        if (match.round !== filterRound) return false;
+    81→    81→      }
+    82→    82→      // Filter by match status (registered/unregistered)
+    83→    83→      if (filterStatus === 'registered') {
+    84→    84→        if (!results[match.id]) return false;
+    85→    85→      } else if (filterStatus === 'unregistered') {
+    86→    86→        if (results[match.id]) return false;
+    87→    87→      }
+    88→    88→      // Filter by favorites
+    89→    89→      if (showFavoritesOnly) {
+    90→    90→        const isFavMatch = favoriteMatches.has(match.id);
+    91→    91→        const involvesFavTeam = favoriteTeams.has(match.team1) || favoriteTeams.has(match.team2);
+    92→    92→        if (!isFavMatch && !involvesFavTeam) return false;
+    93→    93→      }
+    94→    94→      return true;
+    95→    95→    });
+    96→    96→  }, [searchQuery, filterGroup, filterRound, filterStatus, showFavoritesOnly, favoriteMatches, favoriteTeams, results]);
+    97→    97→
+    98→    98→  // Group matches by Saudi Arabia date (timezone-aware)
+    99→    99→  const matchesByDate = useMemo(() => {
+   100→   100→    const grouped: Record<string, typeof MATCHES> = {};
+   101→   101→    const groupMatches = MATCHES.filter(m => m.round === 'group');
+   102→   102→    const filtered = filterMatches(groupMatches);
+   103→   103→    for (const match of filtered) {
+   104→   104→      // Use Saudi date for grouping so late US matches appear on the correct Saudi day
+   105→   105→      const saudiDate = match.time ? getMatchSaudiDate(match.date, match.time, match.venue) : match.date;
+   106→   106→      if (!grouped[saudiDate]) grouped[saudiDate] = [];
+   107→   107→      grouped[saudiDate].push(match);
+   108→   108→    }
+   109→   109→    return grouped;
+   110→   110→  }, [filterMatches]);
+   111→   111→
+   112→   112→  // Group knockout matches by round
+   113→   113→  const knockoutByRound = useMemo(() => {
+   114→   114→    const grouped: Record<string, typeof MATCHES> = {};
+   115→   115→    const knockoutMatches = MATCHES.filter(m => m.round !== 'group');
+   116→   116→    const filtered = filterMatches(knockoutMatches);
+   117→   117→    for (const match of filtered) {
+   118→   118→      const roundKey = match.round;
+   119→   119→      if (!grouped[roundKey]) grouped[roundKey] = [];
+   120→   120→      grouped[roundKey].push(match);
+   121→   121→    }
+   122→   122→    return grouped;
+   123→   123→  }, [filterMatches]);
+   124→   124→
+   125→   125→  // Initialize expanded days with first date using lazy init (Saudi dates)
+   126→   126→  const [expandedDays, setExpandedDays] = useState<Set<string>>(() => {
+   127→   127→    const dates = Object.keys(
+   128→   128→      (() => {
+   129→   129→        const grouped: Record<string, typeof MATCHES> = {};
+   130→   130→        const groupMatches = MATCHES.filter(m => m.round === 'group');
+   131→   131→        for (const match of groupMatches) {
+   132→   132→          const saudiDate = match.time ? getMatchSaudiDate(match.date, match.time, match.venue) : match.date;
+   133→   133→          if (!grouped[saudiDate]) grouped[saudiDate] = [];
+   134→   134→          grouped[saudiDate].push(match);
+   135→   135→        }
+   136→   136→        return grouped;
+   137→   137→      })()
+   138→   138→    ).sort();
+   139→   139→    return new Set(dates.length > 0 ? [dates[0]] : []);
+   140→   140→  });
+   141→   141→
+   142→   142→  const toggleDay = (date: string) => {
+   143→   143→    setExpandedDays(prev => {
+   144→   144→      const next = new Set(prev);
+   145→   145→      if (next.has(date)) next.delete(date);
+   146→   146→      else next.add(date);
+   147→   147→      return next;
+   148→   148→    });
+   149→   149→  };
+   150→   150→
+   151→   151→  const handleMatchClick = useCallback((matchId: number) => {
+   152→   152→    setDialogMatchId(matchId);
+   153→   153→    setDialogOpen(true);
+   154→   154→  }, []);
+   155→   155→
+   156→   156→  const handleDialogOpenChange = useCallback((open: boolean) => {
+   157→   157→    setDialogOpen(open);
+   158→   158→    if (!open) setDialogMatchId(null);
+   159→   159→  }, []);
+   160→   160→
+   161→   161→  // Get dialog team names - for knockout matches, resolve team refs
+   162→   162→  const dialogMatch = dialogMatchId ? MATCHES.find(m => m.id === dialogMatchId) : null;
+   163→   163→  const isKnockoutDialog = dialogMatch ? dialogMatch.round !== 'group' : false;
+   164→   164→
+   165→   165→  // Resolve knockout team names from standings/results
+   166→   166→  const thirdPlaceRanking = useMemo(() => {
+   167→   167→    const ranking: { group: string; team: string; points: number; goalDifference: number; goalsFor: number }[] = [];
+   168→   168→    for (const group of GROUP_NAMES) {
+   169→   169→      const gs = standings[group];
+   170→   170→      if (gs && gs.length >= 3) {
+   171→   171→        ranking.push({
+   172→   172→          group,
+   173→   173→          team: gs[2].team,
+   174→   174→          points: gs[2].points,
+   175→   175→          goalDifference: gs[2].goalDifference,
+   176→   176→          goalsFor: gs[2].goalsFor,
+   177→   177→        });
+   178→   178→      }
+   179→   179→    }
+   180→   180→    ranking.sort((a, b) => {
+   181→   181→      if (b.points !== a.points) return b.points - a.points;
+   182→   182→      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+   183→   183→      if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
+   184→   184→      return 0;
+   185→   185→    });
+   186→   186→    return ranking;
+   187→   187→  }, [standings]);
+   188→   188→
+   189→   189→  const resolveTeamRef = useCallback((ref: string): string | null => {
+   190→   190→    // Group winner
+   191→   191→    const winnerMatch = ref.match(/^1([A-L])$/);
+   192→   192→    if (winnerMatch) {
+   193→   193→      const group = winnerMatch[1];
+   194→   194→      const gs = standings[group];
+   195→   195→      if (gs && gs.length > 0 && gs[0].played > 0) return gs[0].team;
+   196→   196→      return null;
+   197→   197→    }
+   198→   198→    // Group runner-up
+   199→   199→    const runnerUpMatch = ref.match(/^2([A-L])$/);
+   200→   200→    if (runnerUpMatch) {
+   201→   201→      const group = runnerUpMatch[1];
+   202→   202→      const gs = standings[group];
+   203→   203→      if (gs && gs.length > 1 && gs[1].played > 0) return gs[1].team;
+   204→   204→      return null;
+   205→   205→    }
+   206→   206→    // Third place reference
+   207→   207→    const thirdPlaceRefMatch = ref.match(/^3(.+)$/);
+   208→   208→    if (thirdPlaceRefMatch) {
+   209→   209→      const eligibleGroups = { '3ABCDf': ['A','B','C','D','F'], '3CDFGH': ['C','D','F','G','H'], '3CEfHI': ['C','E','F','H','I'], '3EHIJK': ['E','H','I','J','K'], '3BEFIJ': ['B','E','F','I','J'], '3AEHIJ': ['A','E','H','I','J'], '3EFGIJ': ['E','F','G','I','J'], '3DEIJL': ['D','E','I','J','L'] }[ref];
+   210→   210→      if (!eligibleGroups) return null;
+   211→   211→      const usedGroups = new Set<string>();
+   212→   212→      const slots = ['3ABCDf','3CDFGH','3CEfHI','3EHIJK','3BEFIJ','3AEHIJ','3EFGIJ','3DEIJL'];
+   213→   213→      for (const slot of slots) {
+   214→   214→        const slotEligible = { '3ABCDf': ['A','B','C','D','F'], '3CDFGH': ['C','D','F','G','H'], '3CEfHI': ['C','E','F','H','I'], '3EHIJK': ['E','H','I','J','K'], '3BEFIJ': ['B','E','F','I','J'], '3AEHIJ': ['A','E','H','I','J'], '3EFGIJ': ['E','F','G','I','J'], '3DEIJL': ['D','E','I','J','L'] }[slot] || [];
+   215→   215→        for (const tp of thirdPlaceRanking) {
+   216→   216→          if (slotEligible.includes(tp.group) && !usedGroups.has(tp.group) && tp.points > 0) {
+   217→   217→            usedGroups.add(tp.group);
+   218→   218→            if (slot === ref) return tp.team;
+   219→   219→            break;
+   220→   220→          }
+   221→   221→        }
+   222→   222→      }
+   223→   223→      return null;
+   224→   224→    }
+   225→   225→    // Winner of a match
+   226→   226→    const winnerOfMatch = ref.match(/^W(\d+)$/);
+   227→   227→    if (winnerOfMatch) {
+   228→   228→      const matchId = parseInt(winnerOfMatch[1]);
+   229→   229→      const r = results[matchId];
+   230→   230→      if (!r) return null;
+   231→   231→      const m = MATCHES.find(x => x.id === matchId);
+   232→   232→      if (!m) return null;
+   233→   233→      if (r.homeGoals > r.awayGoals) return m.team1;
+   234→   234→      if (r.awayGoals > r.homeGoals) return m.team2;
+   235→   235→      if (r.homePenalties !== undefined && r.awayPenalties !== undefined) {
+   236→   236→        if (r.homePenalties > r.awayPenalties) return m.team1;
+   237→   237→        if (r.awayPenalties > r.homePenalties) return m.team2;
+   238→   238→      }
+   239→   239→      return null;
+   240→   240→    }
+   241→   241→    // Loser of a match
+   242→   242→    const loserOfMatch = ref.match(/^L(\d+)$/);
+   243→   243→    if (loserOfMatch) {
+   244→   244→      const matchId = parseInt(loserOfMatch[1]);
+   245→   245→      const r = results[matchId];
+   246→   246→      if (!r) return null;
+   247→   247→      const m = MATCHES.find(x => x.id === matchId);
+   248→   248→      if (!m) return null;
+   249→   249→      if (r.homeGoals < r.awayGoals) return m.team1;
+   250→   250→      if (r.awayGoals < r.homeGoals) return m.team2;
+   251→   251→      if (r.homePenalties !== undefined && r.awayPenalties !== undefined) {
+   252→   252→        if (r.homePenalties < r.awayPenalties) return m.team1;
+   253→   253→        if (r.awayPenalties < r.homePenalties) return m.team2;
+   254→   254→      }
+   255→   255→      return null;
+   256→   256→    }
+   257→   257→    return null;
+   258→   258→  }, [standings, thirdPlaceRanking, results]);
+   259→   259→
+   260→   260→  // Resolve dialog team names
+   261→   261→  const dialogTeam1 = dialogMatch ? (dialogMatch.team1Ref ? (resolveTeamRef(dialogMatch.team1Ref) || dialogMatch.team1) : dialogMatch.team1) : '';
+   262→   262→  const dialogTeam2 = dialogMatch ? (dialogMatch.team2Ref ? (resolveTeamRef(dialogMatch.team2Ref) || dialogMatch.team2) : dialogMatch.team2) : '';
+   263→   263→
+   264→   264→  // Check if teams are resolved (actual team names, not refs)
+   265→   265→  const isTeam1Resolved = dialogMatch ? (dialogMatch.round === 'group' || TEAMS[dialogTeam1] !== undefined) : false;
+   266→   266→  const isTeam2Resolved = dialogMatch ? (dialogMatch.round === 'group' || TEAMS[dialogTeam2] !== undefined) : false;
+   267→   267→  // Only allow score entry when both teams are resolved
+   268→   268→  const canEnterScore = dialogMatch ? (dialogMatch.round === 'group' || (isTeam1Resolved && isTeam2Resolved)) : false;
+   269→   269→
+   270→   270→  const completedMatches = Object.keys(results).length;
+   271→   271→
+   272→   272→  // Favorites tab data
+   273→   273→  const favoriteTeamsData = useMemo(() => {
+   274→   274→    const teams: { team: string; group: string; position: number; standing: typeof standings[string][0] }[] = [];
+   275→   275→    for (const teamName of favoriteTeams) {
+   276→   276→      const teamData = TEAMS[teamName];
+   277→   277→      if (!teamData) continue;
+   278→   278→      const groupStandings = standings[teamData.group];
+   279→   279→      if (!groupStandings) continue;
+   280→   280→      const idx = groupStandings.findIndex(s => s.team === teamName);
+   281→   281→      if (idx >= 0) {
+   282→   282→        teams.push({ team: teamName, group: teamData.group, position: idx + 1, standing: groupStandings[idx] });
+   283→   283→      }
+   284→   284→    }
+   285→   285→    return teams;
+   286→   286→  }, [favoriteTeams, standings]);
+   287→   287→
+   288→   288→  const favoriteMatchesData = useMemo(() => {
+   289→   289→    return MATCHES.filter(m => favoriteMatches.has(m.id));
+   290→   290→  }, [favoriteMatches]);
+   291→   291→
+   292→   292→  // Matches involving favorite teams (group + knockout with resolved refs)
+   293→   293→  const favoriteTeamMatches = useMemo(() => {
+   294→   294→    if (favoriteTeams.size === 0) return [];
+   295→   295→    return MATCHES.filter(match => {
+   296→   296→      // For group stage, direct team name check
+   297→   297→      if (match.round === 'group') {
+   298→   298→        return favoriteTeams.has(match.team1) || favoriteTeams.has(match.team2);
+   299→   299→      }
+   300→   300→      // For knockout, try to resolve team refs
+   301→   301→      const team1Resolved = match.team1Ref
+   302→   302→        ? (resolveTeamRef(match.team1Ref) || match.team1)
+   303→   303→        : match.team1;
+   304→   304→      const team2Resolved = match.team2Ref
+   305→   305→        ? (resolveTeamRef(match.team2Ref) || match.team2)
+   306→   306→        : match.team2;
+   307→   307→      return favoriteTeams.has(team1Resolved) || favoriteTeams.has(team2Resolved);
+   308→   308→    });
+   309→   309→  }, [favoriteTeams, resolveTeamRef]);
+   310→   310→
+   311→   311→  const hasAnyFavorites = favoriteTeams.size > 0 || favoriteMatches.size > 0;
+   312→   312→
+   313→   313→  return (
+   314→   314→    <div className="min-h-screen bg-gradient-to-b from-[#002868]/5 via-background to-[#00A651]/5" dir="rtl">
+   315→   315→      {/* Hero Header */}
+   316→   316→      <header className="relative overflow-hidden">
+   317→   317→        {/* Background pattern */}
+   318→   318→        <div className="absolute inset-0 bg-gradient-to-bl from-[#002868] via-[#002868]/95 to-[#E31837]/80" />
+   319→   319→        <div className="absolute inset-0 opacity-10">
+   320→   320→          <svg width="100%" height="100%">
+   321→   321→            <defs>
+   322→   322→              <pattern id="hexagons" width="50" height="43.4" patternUnits="userSpaceOnUse" patternTransform="scale(2)">
+   323→   323→                <polygon points="24.8,22 37.3,29.2 37.3,43.7 24.8,50.9 12.3,43.7 12.3,29.2" fill="none" stroke="white" strokeWidth="0.5" />
+   324→   324→              </pattern>
+   325→   325→            </defs>
+   326→   326→            <rect width="100%" height="100%" fill="url(#hexagons)" />
+   327→   327→          </svg>
+   328→   328→        </div>
+   329→   329→
+   330→   330→        <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 md:py-12 text-center">
+   331→   331→          {/* Logo */}
+   332→   332→          <div className="flex items-center justify-center mb-4">
+   333→   333→            {/* eslint-disable-next-line @next/next/no-img-element */}
+   334→   334→            <img src="/wc2026-logo-white.png" alt="كأس العالم 2026" width={260} height={401} className="h-20 md:h-28 w-auto" />
+   335→   335→          </div>
+   336→   336→
+   337→   337→          <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-2 tracking-tight">
+   338→   338→            كأس العالم 2026
+   339→   339→          </h1>
+   340→   340→          <p className="text-lg md:text-xl text-white/80 mb-1 font-medium">
+   341→   341→            FIFA World Cup 2026™
+   342→   342→          </p>
+   343→   343→          <p className="text-sm text-[#FFD700] font-semibold mb-6">
+   344→   344→            الولايات المتحدة · المكسيك · كندا
+   345→   345→          </p>
+   346→   346→
+   347→   347→          {/* Stats */}
+   348→   348→          <div className="flex items-center justify-center gap-4 md:gap-8 flex-wrap">
+   349→   349→            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+   350→   350→              <p className="text-[#FFD700] text-2xl font-bold">48</p>
+   351→   351→              <p className="text-white/70 text-xs">منتخب</p>
+   352→   352→            </div>
+   353→   353→            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+   354→   354→              <p className="text-[#FFD700] text-2xl font-bold">12</p>
+   355→   355→              <p className="text-white/70 text-xs">مجموعة</p>
+   356→   356→            </div>
+   357→   357→            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+   358→   358→              <p className="text-[#FFD700] text-2xl font-bold">104</p>
+   359→   359→              <p className="text-white/70 text-xs">مباراة</p>
+   360→   360→            </div>
+   361→   361→            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+   362→   362→              <p className="text-[#FFD700] text-2xl font-bold">{completedMatches}</p>
+   363→   363→              <p className="text-white/70 text-xs">نتيجة مسجلة</p>
+   364→   364→            </div>
+   365→   365→          </div>
+   366→   366→
+   367→   367→          {/* Countdown Timer */}
+   368→   368→          <CountdownTimer />
+   369→   369→        </div>
+   370→   370→      </header>
+   371→   371→
+   372→   372→      {/* Navigation Tabs */}
+   373→   373→      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border/50 shadow-sm">
+   374→   374→        <div className="max-w-7xl mx-auto px-4">
+   375→   375→          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+   376→   376→            <button
+   377→   377→              onClick={() => setActiveTab('matches')}
+   378→   378→              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+   379→   379→                activeTab === 'matches'
+   380→   380→                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+   381→   381→                  : 'border-transparent text-muted-foreground hover:text-foreground'
+   382→   382→              }`}
+   383→   383→            >
+   384→   384→              ⚽ المباريات
+   385→   385→            </button>
+   386→   386→            <button
+   387→   387→              onClick={() => setActiveTab('prediction')}
+   388→   388→              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+   389→   389→                activeTab === 'prediction'
+   390→   390→                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+   391→   391→                  : 'border-transparent text-muted-foreground hover:text-foreground'
+   392→   392→              }`}
+   393→   393→            >
+   394→   394→              🎯 لعبة التوقعات
+   395→   395→            </button>
+   396→   396→            <button
+   397→   397→              onClick={() => setActiveTab('groups')}
+   398→   398→              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+   399→   399→                activeTab === 'groups'
+   400→   400→                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+   401→   401→                  : 'border-transparent text-muted-foreground hover:text-foreground'
+   402→   402→              }`}
+   403→   403→            >
+   404→   404→              🏅 المجموعات
+   405→   405→            </button>
+   406→   406→            <button
+   407→   407→              onClick={() => setActiveTab('stadiums')}
+   408→   408→              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+   409→   409→                activeTab === 'stadiums'
+   410→   410→                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+   411→   411→                  : 'border-transparent text-muted-foreground hover:text-foreground'
+   412→   412→              }`}
+   413→   413→            >
+   414→   414→              🏟️ الملاعب
+   415→   415→            </button>
+   416→   416→            <button
+   417→   417→              onClick={() => setActiveTab('knockout')}
+   418→   418→              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+   419→   419→                activeTab === 'knockout'
+   420→   420→                  ? 'border-[#002868] text-[#002868] dark:text-blue-400 dark:border-blue-400'
+   421→   421→                  : 'border-transparent text-muted-foreground hover:text-foreground'
+   422→   422→              }`}
+   423→   423→            >
+   424→   424→              🏆 الأدوار الإقصائية
+   425→   425→            </button>
+   426→   426→            <button
+   427→   427→              onClick={() => setActiveTab('favorites')}
+   428→   428→              className={`flex-shrink-0 px-5 py-3 text-sm font-bold transition-all border-b-2 ${
+   429→   429→                activeTab === 'favorites'
+   430→   430→                  ? 'border-[#FFD700] text-[#002868]'
+   431→   431→                  : 'border-transparent text-muted-foreground hover:text-foreground'
+   432→   432→              }`}
+   433→   433→            >
+   434→   434→              ⭐ المفضلة
+   435→   435→              {(favoriteTeams.size > 0 || favoriteMatches.size > 0) && (
+   436→   436→                <span className="mr-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#FFD700] text-[10px] font-bold text-[#002868]">
+   437→   437→                  {favoriteTeams.size + favoriteMatches.size}
+   438→   438→                </span>
+   439→   439→              )}
+   440→   440→            </button>
+   441→   441→
+   442→   442→            {/* Reset & Notification buttons */}
+   443→   443→            <div className="mr-auto flex items-center gap-2">
+   444→   444→              <ThemeToggle />
+   445→   445→              {/* Notification toggle - auto for ALL matches */}
+   446→   446→              {notificationsEnabled ? (
+   447→   447→                <button
+   448→   448→                  onClick={disableNotifications}
+   449→   449→                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#00A651]/10 text-[#00A651] text-xs font-medium hover:bg-[#00A651]/20 transition-colors"
+   450→   450→                  title="الإشعارات مفعّلة لجميع المباريات - اضغط للإيقاف"
+   451→   451→                >
+   452→   452→                  <BellRing className="w-3.5 h-3.5" />
+   453→   453→                  <span>إشعارات مفعّلة ({upcomingCount})</span>
+   454→   454→                </button>
+   455→   455→              ) : permission === 'denied' ? (
+   456→   456→                <button
+   457→   457→                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#E31837]/10 text-[#E31837] text-xs font-medium"
+   458→   458→                  title="تم حظر الإشعارات من إعدادات المتصفح"
+   459→   459→                >
+   460→   460→                  <Bell className="w-3.5 h-3.5" />
+   461→   461→                  <span>الإشعارات محظورة</span>
+   462→   462→                </button>
+   463→   463→              ) : (
+   464→   464→                <button
+   465→   465→                  onClick={requestPermission}
+   466→   466→                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted transition-colors"
+   467→   467→                  title="تفعيل إشعارات جميع المباريات تلقائياً"
+   468→   468→                >
+   469→   469→                  <Bell className="w-3.5 h-3.5" />
+   470→   470→                  <span>تفعيل الإشعارات</span>
+   471→   471→                </button>
+   472→   472→              )}
+   473→   473→              {completedMatches > 0 && (
+   474→   474→                <Button
+   475→   475→                  variant="ghost"
+   476→   476→                  size="sm"
+   477→   477→                  onClick={() => {
+   478→   478→                    if (confirm('هل تريد مسح جميع النتائج؟')) {
+   479→   479→                      resetAllResults();
+   480→   480→                    }
+   481→   481→                  }}
+   482→   482→                  className="text-xs text-muted-foreground hover:text-[#E31837]"
+   483→   483→                >
+   484→   484→                  <RotateCcw className="w-3 h-3 ml-1" />
+   485→   485→                  مسح الكل
+   486→   486→                </Button>
+   487→   487→              )}
+   488→   488→            </div>
+   489→   489→          </div>
+   490→   490→        </div>
+   491→   491→      </div>
+   492→   492→
+   493→   493→      {/* Content */}
+   494→   494→      <main className="max-w-7xl mx-auto px-4 py-8">
+   495→   495→        {/* MATCHES TAB */}
+   496→   496→        {activeTab === 'matches' && (
+   497→   497→          <div className="space-y-8">
+   498→   498→            {/* Filter Bar */}
+   499→   499→            <Card className="p-4 border-border/50 bg-card/80 backdrop-blur-sm !py-3">
+   500→   500→              <div className="flex flex-wrap items-center gap-2">
+   501→   501→                <div className="relative flex-1 min-w-[180px]">
+   502→   502→                  <Search className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   503→   503→                  <Input
+   504→   504→                    placeholder="ابحث عن منتخب..."
+   505→   505→                    value={searchQuery}
+   506→   506→                    onChange={(e) => setSearchQuery(e.target.value)}
+   507→   507→                    className="pr-8 h-8 text-sm"
+   508→   508→                  />
+   509→   509→                </div>
+   510→   510→                <Select value={filterGroup} onValueChange={setFilterGroup}>
+   511→   511→                  <SelectTrigger className="h-8 text-sm w-[130px]">
+   512→   512→                    <SelectValue placeholder="المجموعة" />
+   513→   513→                  </SelectTrigger>
+   514→   514→                  <SelectContent>
+   515→   515→                    <SelectItem value="all">كل المجموعات</SelectItem>
+   516→   516→                    {GROUP_NAMES.map(g => (
+   517→   517→                      <SelectItem key={g} value={g}>{GROUP_NAMES_AR[g]}</SelectItem>
+   518→   518→                    ))}
+   519→   519→                  </SelectContent>
+   520→   520→                </Select>
+   521→   521→                <Select value={filterRound} onValueChange={setFilterRound}>
+   522→   522→                  <SelectTrigger className="h-8 text-sm w-[140px]">
+   523→   523→                    <SelectValue placeholder="الدور" />
+   524→   524→                  </SelectTrigger>
+   525→   525→                  <SelectContent>
+   526→   526→                    <SelectItem value="all">كل الأدوار</SelectItem>
+   527→   527→                    <SelectItem value="group">دور المجموعات</SelectItem>
+   528→   528→                    <SelectItem value="r32">دور الـ 32</SelectItem>
+   529→   529→                    <SelectItem value="r16">دور الـ 16</SelectItem>
+   530→   530→                    <SelectItem value="qf">ربع النهائي</SelectItem>
+   531→   531→                    <SelectItem value="sf">نصف النهائي</SelectItem>
+   532→   532→                    <SelectItem value="3rd">المركز الثالث</SelectItem>
+   533→   533→                    <SelectItem value="final">النهائي</SelectItem>
+   534→   534→                  </SelectContent>
+   535→   535→                </Select>
+   536→   536→                <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as 'all' | 'registered' | 'unregistered')}>
+   537→   537→                  <SelectTrigger className="h-8 text-sm w-[130px]">
+   538→   538→                    <SelectValue placeholder="الحالة" />
+   539→   539→                  </SelectTrigger>
+   540→   540→                  <SelectContent>
+   541→   541→                    <SelectItem value="all">كل المباريات</SelectItem>
+   542→   542→                    <SelectItem value="registered">مسجلة النتيجة</SelectItem>
+   543→   543→                    <SelectItem value="unregistered">غير مسجلة</SelectItem>
+   544→   544→                  </SelectContent>
+   545→   545→                </Select>
+   546→   546→                <Button
+   547→   547→                  variant={showFavoritesOnly ? 'default' : 'outline'}
+   548→   548→                  size="sm"
+   549→   549→                  className={`h-8 text-xs ${showFavoritesOnly ? 'bg-[#FFD700] text-[#002868] hover:bg-[#e6c200]' : ''}`}
+   550→   550→                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+   551→   551→                >
+   552→   552→                  <Star className={`w-3 h-3 ml-1 ${showFavoritesOnly ? 'fill-[#002868]' : ''}`} />
+   553→   553→                  المفضلة فقط
+   554→   554→                </Button>
+   555→   555→              </div>
+   556→   556→            </Card>
+   557→   557→
+   558→   558→            {/* Group Stage Section */}
+   559→   559→            <div>
+   560→   560→              <div className="flex items-center gap-3 mb-5">
+   561→   561→                <div className="w-1.5 h-7 bg-[#002868] rounded-full" />
+   562→   562→                <h2 className="text-xl font-bold text-[#002868]">دور المجموعات</h2>
+   563→   563→                <Badge variant="secondary" className="bg-[#002868]/10 text-[#002868]">
+   564→   564→                  72 مباراة
+   565→   565→                </Badge>
+   566→   566→              </div>
+   567→   567→
+   568→   568→              <div className="space-y-4">
+   569→   569→                {Object.entries(matchesByDate)
+   570→   570→                  .sort(([a], [b]) => a.localeCompare(b))
+   571→   571→                  .map(([date, matches]) => {
+   572→   572→                    const isExpanded = expandedDays.has(date);
+   573→   573→                    return (
+   574→   574→                      <div key={date} className="rounded-xl overflow-hidden border border-border/30 shadow-sm">
+   575→   575→                        {/* Date header */}
+   576→   576→                        <button
+   577→   577→                          onClick={() => toggleDay(date)}
+   578→   578→                          className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-l from-muted/80 to-muted/40 hover:from-muted hover:to-muted/60 transition-all"
+   579→   579→                        >
+   580→   580→                          <div className="flex items-center gap-2">
+   581→   581→                            <span className="text-sm font-bold text-[#002868]">
+   582→   582→                              {formatDateAr(date)}
+   583→   583→                            </span>
+   584→   584→                            <Badge variant="outline" className="text-xs">
+   585→   585→                              {matches.length} مباراة
+   586→   586→                            </Badge>
+   587→   587→                          </div>
+   588→   588→                          {isExpanded ? (
+   589→   589→                            <ChevronUp className="w-4 h-4 text-muted-foreground" />
+   590→   590→                          ) : (
+   591→   591→                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+   592→   592→                          )}
+   593→   593→                        </button>
+   594→   594→
+   595→   595→                        {/* Matches grid */}
+   596→   596→                        {isExpanded && (
+   597→   597→                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+   598→   598→                            {matches.map(match => (
+   599→   599→                              <MatchCard
+   600→   600→                                key={match.id}
+   601→   601→                                matchId={match.id}
+   602→   602→                                onMatchClick={handleMatchClick}
+   603→   603→
+   604→   604→                              />
+   605→   605→                            ))}
+   606→   606→                          </div>
+   607→   607→                        )}
+   608→   608→                      </div>
+   609→   609→                    );
+   610→   610→                  })}
+   611→   611→                {Object.keys(matchesByDate).length === 0 && filterRound !== 'all' && filterRound !== 'group' && (
+   612→   612→                  <div className="text-center py-8 text-muted-foreground text-sm">
+   613→   613→                    لا توجد مباريات في دور المجموعات تطابق الفلتر المحدد
+   614→   614→                  </div>
+   615→   615→                )}
+   616→   616→              </div>
+   617→   617→            </div>
+   618→   618→
+   619→   619→            {/* Knockout Stage Preview */}
+   620→   620→            <div>
+   621→   621→              <div className="flex items-center gap-3 mb-5">
+   622→   622→                <div className="w-1.5 h-7 bg-[#E31837] rounded-full" />
+   623→   623→                <h2 className="text-xl font-bold text-[#E31837]">الأدوار الإقصائية</h2>
+   624→   624→                <Badge variant="secondary" className="bg-[#E31837]/10 text-[#E31837]">
+   625→   625→                  32 مباراة
+   626→   626→                </Badge>
+   627→   627→              </div>
+   628→   628→
+   629→   629→              <div className="space-y-4">
+   630→   630→                {Object.entries(knockoutByRound).map(([round, matches]) => {
+   631→   631→                  const roundKey = round as string;
+   632→   632→                  return (
+   633→   633→                    <div key={roundKey} className="rounded-xl overflow-hidden border border-border/30 shadow-sm">
+   634→   634→                      <div className="px-4 py-3 bg-gradient-to-l from-[#E31837]/10 to-[#E31837]/5">
+   635→   635→                        <span className="text-sm font-bold text-[#E31837]">
+   636→   636→                          {ROUND_NAMES_AR[roundKey]}
+   637→   637→                        </span>
+   638→   638→                        <Badge variant="outline" className="text-xs mr-2">
+   639→   639→                          {matches.length} مباراة
+   640→   640→                        </Badge>
+   641→   641→                      </div>
+   642→   642→                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+   643→   643→                        {matches.map(match => (
+   644→   644→                          <MatchCard
+   645→   645→                            key={match.id}
+   646→   646→                            matchId={match.id}
+   647→   647→                            onMatchClick={handleMatchClick}
+   648→   648→                          />
+   649→   649→                        ))}
+   650→   650→                      </div>
+   651→   651→                    </div>
+   652→   652→                  );
+   653→   653→                })}
+   654→   654→                {Object.keys(knockoutByRound).length === 0 && (
+   655→   655→                  <div className="text-center py-8 text-muted-foreground text-sm">
+   656→   656→                    لا توجد مباريات إقصائية تطابق الفلتر المحدد
+   657→   657→                  </div>
+   658→   658→                )}
+   659→   659→              </div>
+   660→   660→            </div>
+   661→   661→          </div>
+   662→   662→        )}
+   663→   663→
+   664→   664→        {/* PREDICTION GAME TAB */}
+   665→   665→        {activeTab === 'prediction' && (
+   666→   666→          <div>
+   667→   667→            <div className="flex items-center gap-3 mb-6">
+   668→   668→              <div className="w-1.5 h-7 bg-[#FFD700] rounded-full" />
+   669→   669→              <h2 className="text-xl font-bold text-[#002868] dark:text-blue-400">لعبة التوقعات</h2>
+   670→   670→              <Trophy className="w-5 h-5 text-[#FFD700]" />
+   671→   671→            </div>
+   672→   672→
+   673→   673→            <PredictionGame />
+   674→   674→          </div>
+   675→   675→        )}
+   676→   676→
+   677→   677→        {/* GROUPS TAB */}
+   678→   678→        {activeTab === 'groups' && (
+   679→   679→          <div>
+   680→   680→            <div className="flex items-center gap-3 mb-6">
+   681→   681→              <div className="w-1.5 h-7 bg-[#00A651] rounded-full" />
+   682→   682→              <h2 className="text-xl font-bold text-[#002868]">ترتيب المجموعات</h2>
+   683→   683→            </div>
+   684→   684→
+   685→   685→            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+   686→   686→              {GROUP_NAMES.map(group => (
+   687→   687→                <GroupTable
+   688→   688→                  key={group}
+   689→   689→                  group={group}
+   690→   690→                  standings={standings[group] || []}
+   691→   691→                  allStandings={standings}
+   692→   692→                />
+   693→   693→              ))}
+   694→   694→            </div>
+   695→   695→
+   696→   696→            {/* Qualification Info */}
+   697→   697→            <div className="mt-6 p-4 bg-gradient-to-l from-[#FFD700]/10 to-[#FFD700]/5 rounded-xl border border-[#FFD700]/20">
+   698→   698→              <h3 className="text-sm font-bold text-[#002868] mb-2">نظام التأهل</h3>
+   699→   699→              <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+   700→   700→                <li>يتأهل أول وثاني كل مجموعة مباشرة إلى دور الـ 32 (24 منتخب)</li>
+   701→   701→                <li>يتأهل أفضل 8 منتخبات من أصحاب المركز الثالث إلى دور الـ 32</li>
+   702→   702→                <li><span className="inline-block w-2 h-2 rounded-full bg-[#00A651] mr-1" /> متأهل مباشر</li>
+   703→   703→                <li><span className="inline-block w-2 h-2 rounded-full bg-[#FFD700] mr-1" /> أفضل ثالث متأهل</li>
+   704→   704→                <li><span className="inline-block w-2 h-2 rounded-full bg-[#E31837]/50 mr-1" /> مستبعد</li>
+   705→   705→              </ul>
+   706→   706→            </div>
+   707→   707→          </div>
+   708→   708→        )}
+   709→   709→
+   710→   710→        {/* STADIUMS TAB */}
+   711→   711→        {activeTab === 'stadiums' && (
+   712→   712→          <div>
+   713→   713→            <div className="flex items-center gap-3 mb-6">
+   714→   714→              <div className="w-1.5 h-7 bg-[#00A651] rounded-full" />
+   715→   715→              <h2 className="text-xl font-bold text-[#002868] dark:text-blue-400">الملاعب والقنوات</h2>
+   716→   716→            </div>
+   717→   717→
+   718→   718→            <StadiumInfo />
+   719→   719→          </div>
+   720→   720→        )}
+   721→   721→
+   722→   722→        {/* KNOCKOUT TAB */}
+   723→   723→        {activeTab === 'knockout' && (
+   724→   724→          <div>
+   725→   725→            <div className="flex items-center gap-3 mb-6">
+   726→   726→              <div className="w-1.5 h-7 bg-[#E31837] rounded-full" />
+   727→   727→              <h2 className="text-xl font-bold text-[#002868]">الأدوار الإقصائية</h2>
+   728→   728→              <Trophy className="w-5 h-5 text-[#FFD700]" />
+   729→   729→            </div>
+   730→   730→
+   731→   731→            <KnockoutBracket onMatchClick={handleMatchClick} />
+   732→   732→          </div>
+   733→   733→        )}
+   734→   734→
+   735→   735→        {/* FAVORITES TAB */}
+   736→   736→        {activeTab === 'favorites' && (
+   737→   737→          <div>
+   738→   738→            <div className="flex items-center gap-3 mb-6">
+   739→   739→              <div className="w-1.5 h-7 bg-[#FFD700] rounded-full" />
+   740→   740→              <h2 className="text-xl font-bold text-[#002868]">المفضلة</h2>
+   741→   741→              <Star className="w-5 h-5 text-[#FFD700] fill-[#FFD700]" />
+   742→   742→            </div>
+   743→   743→
+   744→   744→            {!hasAnyFavorites ? (
+   745→   745→              <Card className="p-8 border-dashed border-2 border-border/50 text-center">
+   746→   746→                <div className="flex flex-col items-center gap-3">
+   747→   747→                  <div className="w-16 h-16 rounded-full bg-[#FFD700]/10 flex items-center justify-center">
+   748→   748→                    <Heart className="w-8 h-8 text-[#FFD700]/50" />
+   749→   749→                  </div>
+   750→   750→                  <h3 className="text-lg font-bold text-muted-foreground">لم تقم بإضافة أي مفضلات بعد</h3>
+   751→   751→                  <p className="text-sm text-muted-foreground/70 max-w-md">
+   752→   752→                    اضغط على نجمة ⭐ بجانب أي منتخب في جداول المجموعات أو أي مباراة لإضافتها إلى المفضلة
+   753→   753→                  </p>
+   754→   754→                  <Button
+   755→   755→                    variant="outline"
+   756→   756→                    className="mt-2 border-[#FFD700] text-[#002868] hover:bg-[#FFD700]/10"
+   757→   757→                    onClick={() => setActiveTab('groups')}
+   758→   758→                  >
+   759→   759→                    تصفح المجموعات
+   760→   760→                  </Button>
+   761→   761→                </div>
+   762→   762→              </Card>
+   763→   763→            ) : (
+   764→   764→              <div className="space-y-6">
+   765→   765→                {/* Favorite Teams Section */}
+   766→   766→                {favoriteTeamsData.length > 0 && (
+   767→   767→                  <div>
+   768→   768→                    <div className="flex items-center gap-2 mb-4">
+   769→   769→                      <div className="w-1 h-6 bg-[#002868] rounded-full" />
+   770→   770→                      <h3 className="text-lg font-bold text-[#002868]">المنتخبات المفضلة</h3>
+   771→   771→                      <Badge variant="secondary" className="bg-[#002868]/10 text-[#002868]">
+   772→   772→                        {favoriteTeamsData.length} منتخب
+   773→   773→                      </Badge>
+   774→   774→                    </div>
+   775→   775→                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   776→   776→                      {favoriteTeamsData.map(({ team, group, position, standing }) => {
+   777→   777→                        const teamData = TEAMS[team];
+   778→   778→                        const isQualified = position <= 2;
+   779→   779→                        return (
+   780→   780→                          <Card key={team} className="p-4 border-border/50 hover:shadow-md transition-shadow">
+   781→   781→                            <div className="flex items-center gap-3 mb-3">
+   782→   782→                              <TeamFlag teamName={team} size="lg" />
+   783→   783→                              <div className="flex-1 min-w-0">
+   784→   784→                                <h4 className="font-bold text-sm truncate">{teamData?.nameAr || team}</h4>
+   785→   785→                                <p className="text-xs text-muted-foreground">{GROUP_NAMES_AR[group]} · المركز {position}</p>
+   786→   786→                              </div>
+   787→   787→                              {isQualified && (
+   788→   788→                                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#00A651]/10 text-[#00A651] text-xs font-bold">
+   789→   789→                                  متأهل
+   790→   790→                                </span>
+   791→   791→                              )}
+   792→   792→                            </div>
+   793→   793→                            <div className="grid grid-cols-5 gap-2 text-center">
+   794→   794→                              <div>
+   795→   795→                                <p className="text-xs text-muted-foreground">لعب</p>
+   796→   796→                                <p className="text-sm font-bold">{standing.played}</p>
+   797→   797→                              </div>
+   798→   798→                              <div>
+   799→   799→                                <p className="text-xs text-muted-foreground">فوز</p>
+   800→   800→                                <p className="text-sm font-bold text-[#00A651]">{standing.won}</p>
+   801→   801→                              </div>
+   802→   802→                              <div>
+   803→   803→                                <p className="text-xs text-muted-foreground">تعادل</p>
+   804→   804→                                <p className="text-sm font-bold">{standing.drawn}</p>
+   805→   805→                              </div>
+   806→   806→                              <div>
+   807→   807→                                <p className="text-xs text-muted-foreground">خسارة</p>
+   808→   808→                                <p className="text-sm font-bold text-[#E31837]">{standing.lost}</p>
+   809→   809→                              </div>
+   810→   810→                              <div>
+   811→   811→                                <p className="text-xs text-muted-foreground">نقاط</p>
+   812→   812→                                <p className="text-sm font-bold text-[#002868]">{standing.points}</p>
+   813→   813→                              </div>
+   814→   814→                            </div>
+   815→   815→                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/30 text-xs text-muted-foreground">
+   816→   816→                              <span>له: {standing.goalsFor}</span>
+   817→   817→                              <span>عليه: {standing.goalsAgainst}</span>
+   818→   818→                              <span style={{ color: standing.goalDifference > 0 ? '#00A651' : standing.goalDifference < 0 ? '#E31837' : 'inherit' }}>
+   819→   819→                                الفرق: {standing.goalDifference > 0 ? '+' : ''}{standing.goalDifference}
+   820→   820→                              </span>
+   821→   821→                            </div>
+   822→   822→                          </Card>
+   823→   823→                        );
+   824→   824→                      })}
+   825→   825→                    </div>
+   826→   826→                  </div>
+   827→   827→                )}
+   828→   828→
+   829→   829→                {/* Matches of Favorite Teams Section */}
+   830→   830→                {favoriteTeamMatches.length > 0 && (
+   831→   831→                  <div>
+   832→   832→                    <div className="flex items-center gap-2 mb-4">
+   833→   833→                      <div className="w-1 h-6 bg-[#00A651] rounded-full" />
+   834→   834→                      <h3 className="text-lg font-bold text-[#002868]">مباريات الفرق المفضلة</h3>
+   835→   835→                      <Badge variant="secondary" className="bg-[#00A651]/10 text-[#00A651]">
+   836→   836→                        {favoriteTeamMatches.length} مباراة
+   837→   837→                      </Badge>
+   838→   838→                    </div>
+   839→   839→                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   840→   840→                      {favoriteTeamMatches.map(match => (
+   841→   841→                        <MatchCard
+   842→   842→                          key={match.id}
+   843→   843→                          matchId={match.id}
+   844→   844→                          onMatchClick={handleMatchClick}
+   845→   845→                        />
+   846→   846→                      ))}
+   847→   847→                    </div>
+   848→   848→                  </div>
+   849→   849→                )}
+   850→   850→
+   851→   851→                {/* Favorite Matches Section */}
+   852→   852→                {favoriteMatchesData.length > 0 && (
+   853→   853→                  <div>
+   854→   854→                    <div className="flex items-center gap-2 mb-4">
+   855→   855→                      <div className="w-1 h-6 bg-[#E31837] rounded-full" />
+   856→   856→                      <h3 className="text-lg font-bold text-[#002868]">المباريات المفضلة</h3>
+   857→   857→                      <Badge variant="secondary" className="bg-[#E31837]/10 text-[#E31837]">
+   858→   858→                        {favoriteMatchesData.length} مباراة
+   859→   859→                      </Badge>
+   860→   860→                    </div>
+   861→   861→                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   862→   862→                      {favoriteMatchesData.map(match => (
+   863→   863→                        <MatchCard
+   864→   864→                          key={match.id}
+   865→   865→                          matchId={match.id}
+   866→   866→                          onMatchClick={handleMatchClick}
+   867→   867→                        />
+   868→   868→                      ))}
+   869→   869→                    </div>
+   870→   870→                  </div>
+   871→   871→                )}
+   872→   872→              </div>
+   873→   873→            )}
+   874→   874→          </div>
+   875→   875→        )}
+   876→   876→      </main>
+   877→   877→
+   878→   878→      {/* Footer */}
+   879→   879→      <footer className="bg-gradient-to-l from-[#002868] to-[#001a4a] mt-12">
+   880→   880→        <div className="max-w-7xl mx-auto px-4 py-6 text-center">
+   881→   881→          <p className="text-white/60 text-xs">
+   882→   882→            كأس العالم 2026™ — FIFA World Cup 2026™
+   883→   883→          </p>
+   884→   884→          <p className="text-[#FFD700]/80 text-xs mt-1 font-semibold">
+   885→   885→            جميع الحقوق محفوظة لـ SpeadySoft
+   886→   886→          </p>
+   887→   887→          <p className="text-white/40 text-xs mt-1">
+   888→   888→            هذا الموقع غير رسمي ويهدف إلى الترفيه فقط
+   889→   889→          </p>
+   890→   890→        </div>
+   891→   891→      </footer>
+   892→   892→
+   893→   893→      {/* Score Dialog */}
+   894→   894→      <ScoreDialog
+   895→   895→        matchId={dialogMatchId}
+   896→   896→        team1={dialogTeam1}
+   897→   897→        team2={dialogTeam2}
+   898→   898→        isKnockout={isKnockoutDialog}
+   899→   899→        canEnterScore={canEnterScore}
+   900→   900→        open={dialogOpen}
+   901→   901→        onOpenChange={handleDialogOpenChange}
+   902→   902→      />
+   903→   903→    </div>
+   904→   904→  );
+   905→   905→}

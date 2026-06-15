@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TeamFlag } from '@/components/wc2026/TeamFlag';
-import { Trophy, Target, TrendingUp, Users, ChevronDown, ChevronUp, Star, Zap } from 'lucide-react';
+import { Trophy, Target, TrendingUp, ChevronDown, ChevronUp, Star, Zap } from 'lucide-react';
 
 // Scoring system per round
 const SCORING: Record<string, { correctResult: number; exactScore: number }> = {
@@ -21,20 +21,6 @@ const SCORING: Record<string, { correctResult: number; exactScore: number }> = {
   '3rd': { correctResult: 5, exactScore: 10 },
   'final': { correctResult: 8, exactScore: 15 },
 };
-
-// Simulated leaderboard
-const SIMULATED_LEADERBOARD = [
-  { name: 'محمد العلي', points: 245, exactScores: 32, correctResults: 48 },
-  { name: 'أحمد الحربي', points: 218, exactScores: 28, correctResults: 42 },
-  { name: 'فاطمة الزهراني', points: 196, exactScores: 25, correctResults: 38 },
-  { name: 'عبدالله القحطاني', points: 183, exactScores: 22, correctResults: 36 },
-  { name: 'نورة السعيد', points: 167, exactScores: 20, correctResults: 33 },
-  { name: 'خالد الشمري', points: 154, exactScores: 18, correctResults: 31 },
-  { name: 'سارة الدوسري', points: 142, exactScores: 16, correctResults: 29 },
-  { name: 'عمر الغامدي', points: 128, exactScores: 14, correctResults: 27 },
-  { name: 'ريم العتيبي', points: 115, exactScores: 12, correctResults: 25 },
-  { name: 'يوسف المالكي', points: 98, exactScores: 10, correctResults: 22 },
-];
 
 const toArabicDigits = (n: number | string): string => {
   return String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)]);
@@ -147,14 +133,6 @@ export function PredictionGame() {
     setEditHome('');
     setEditAway('');
   };
-
-  // Merge user into leaderboard
-  const leaderboard = useMemo(() => {
-    const userEntry = { name: 'أنت', points: pointsSummary.totalPoints, exactScores: pointsSummary.totalExact, correctResults: pointsSummary.totalCorrectResult, isUser: true as const };
-    const all = [...SIMULATED_LEADERBOARD.map(e => ({ ...e, isUser: false as const })), userEntry];
-    all.sort((a, b) => b.points - a.points);
-    return all;
-  }, [pointsSummary]);
 
   const roundOrder = ['group', 'r32', 'r16', 'qf', 'sf', '3rd', 'final'];
 
@@ -425,50 +403,6 @@ export function PredictionGame() {
         })}
       </div>
 
-      {/* Leaderboard */}
-      <Card className="p-4 border-border/50">
-        <div className="flex items-center gap-2 mb-4">
-          <Users className="w-4 h-4 text-[#002868] dark:text-blue-400" />
-          <h3 className="text-sm font-bold text-[#002868] dark:text-blue-400">لوحة المتصدرين</h3>
-        </div>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {leaderboard.map((entry, idx) => (
-            <div
-              key={entry.name}
-              className={`flex items-center justify-between p-3 rounded-lg transition-all ${
-                'isUser' in entry && entry.isUser
-                  ? 'bg-[#002868]/10 border border-[#002868]/20'
-                  : 'bg-muted/30'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                  idx === 0 ? 'bg-[#FFD700] text-[#002868]' :
-                  idx === 1 ? 'bg-gray-300 text-gray-700' :
-                  idx === 2 ? 'bg-amber-600 text-white' :
-                  'bg-muted text-muted-foreground'
-                }`}>
-                  {toArabicDigits(idx + 1)}
-                </span>
-                <div>
-                  <p className={`text-sm font-bold ${
-                    'isUser' in entry && entry.isUser ? 'text-[#002868] dark:text-blue-400' : ''
-                  }`}>
-                    {entry.name} {'isUser' in entry && entry.isUser && '(أنت)'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    🏅 {toArabicDigits(entry.exactScores)} | ✓ {toArabicDigits(entry.correctResults)}
-                  </p>
-                </div>
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-extrabold text-[#FFD700]">{toArabicDigits(entry.points)}</p>
-                <p className="text-xs text-muted-foreground">نقطة</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }

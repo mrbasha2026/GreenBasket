@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { MATCHES, TEAMS, GROUP_NAMES, GROUP_NAMES_AR, ROUND_NAMES_AR } from '@/lib/wc2026-data';
-import { calculateGroupStandings, formatDateAr, formatTimeAr } from '@/lib/wc2026-logic';
+import { calculateGroupStandings, formatDateAr, formatTimeAr, getMatchSaudiDate, formatMatchSaudiDateAr } from '@/lib/wc2026-logic';
 import { MatchCard } from '@/components/wc2026/MatchCard';
 import { GroupTable } from '@/components/wc2026/GroupTable';
 import { KnockoutBracket } from '@/components/wc2026/KnockoutBracket';
@@ -89,14 +89,16 @@ export default function Home() {
     });
   }, [searchQuery, filterGroup, filterRound, filterStatus, showFavoritesOnly, favoriteMatches, favoriteTeams, results]);
 
-  // Group matches by date
+  // Group matches by Saudi Arabia date (timezone-aware)
   const matchesByDate = useMemo(() => {
     const grouped: Record<string, typeof MATCHES> = {};
     const groupMatches = MATCHES.filter(m => m.round === 'group');
     const filtered = filterMatches(groupMatches);
     for (const match of filtered) {
-      if (!grouped[match.date]) grouped[match.date] = [];
-      grouped[match.date].push(match);
+      // Use Saudi date for grouping so late US matches appear on the correct Saudi day
+      const saudiDate = match.time ? getMatchSaudiDate(match.date, match.time, match.venue) : match.date;
+      if (!grouped[saudiDate]) grouped[saudiDate] = [];
+      grouped[saudiDate].push(match);
     }
     return grouped;
   }, [filterMatches]);
@@ -114,15 +116,16 @@ export default function Home() {
     return grouped;
   }, [filterMatches]);
 
-  // Initialize expanded days with first date using lazy init
+  // Initialize expanded days with first date using lazy init (Saudi dates)
   const [expandedDays, setExpandedDays] = useState<Set<string>>(() => {
     const dates = Object.keys(
       (() => {
         const grouped: Record<string, typeof MATCHES> = {};
         const groupMatches = MATCHES.filter(m => m.round === 'group');
         for (const match of groupMatches) {
-          if (!grouped[match.date]) grouped[match.date] = [];
-          grouped[match.date].push(match);
+          const saudiDate = match.time ? getMatchSaudiDate(match.date, match.time, match.venue) : match.date;
+          if (!grouped[saudiDate]) grouped[saudiDate] = [];
+          grouped[saudiDate].push(match);
         }
         return grouped;
       })()

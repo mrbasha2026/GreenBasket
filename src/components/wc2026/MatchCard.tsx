@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TEAMS, MATCHES, GROUP_NAMES_AR, ROUND_NAMES_AR, THIRD_PLACE_ELIGIBLE_GROUPS, getTeamRefDisplayName } from '@/lib/wc2026-data';
-import { formatDateAr, formatMatchLocalTime, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
+import { formatMatchSaudiDateAr, formatMatchLocalTime, calculateGroupStandings, calculateThirdPlaceRanking } from '@/lib/wc2026-logic';
 import { useWC2026Store } from '@/store/wc2026-store';
 import { TeamFlag } from './TeamFlag';
 import { Star, Clock } from 'lucide-react';
@@ -257,7 +257,7 @@ export function MatchCard({ matchId, onMatchClick }: MatchCardProps) {
                 {formatMatchLocalTime(match.date, match.time, match.venue)}
               </span>
             )}
-            <span>{formatDateAr(match.date)}</span>
+            <span>{formatMatchSaudiDateAr(match.date, match.time || '', match.venue)}</span>
           </div>
           <span className="truncate mr-2">{match.venueAr}</span>
         </div>

@@ -265,8 +265,12 @@ export function getMatchLoser(
   return null;
 }
 
+// ──────────────────────── Saudi Arabia Timezone ────────────────────────
+const SAUDI_TZ = 'Asia/Riyadh'; // UTC+3 (no DST)
+
 /**
- * Format date in Arabic
+ * Format date in Arabic (plain date, no timezone conversion)
+ * Used for display purposes where the date is already in the correct timezone
  */
 export function formatDateAr(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
@@ -306,14 +310,12 @@ const VENUE_TZ_OFFSETS: Record<string, number> = {
 };
 
 /**
- * Convert match time from venue local timezone to user's local timezone
- * Returns formatted time string in user's local timezone
+ * Convert match venue local time to a UTC Date object
+ * This is the core conversion used by all time/date display functions
  */
-export function formatMatchLocalTime(date: string, time: string, venue: string): string {
-  if (!time) return '';
-
+function getMatchUTCDate(date: string, time: string, venue: string): Date | null {
   const venueOffset = VENUE_TZ_OFFSETS[venue];
-  if (venueOffset === undefined) return time; // Fallback: show as-is if venue unknown
+  if (venueOffset === undefined) return null;
 
   try {
     const [hours, minutes] = time.split(':').map(Number);
@@ -323,7 +325,7 @@ export function formatMatchLocalTime(date: string, time: string, venue: string):
     // e.g., 18:00 at UTC-5 → UTC = 18:00 - (-5) = 23:00 UTC
     const utcHours = hours - venueOffset;
 
-    const utcDate = new Date(Date.UTC(
+    return new Date(Date.UTC(
       parseInt(date.substring(0, 4)),
       parseInt(date.substring(5, 7)) - 1,
       parseInt(date.substring(8, 10)),
@@ -331,12 +333,28 @@ export function formatMatchLocalTime(date: string, time: string, venue: string):
       minutes,
       0
     ));
+  } catch {
+    return null;
+  }
+}
 
-    // Format in user's local timezone using Intl API
+/**
+ * Convert match time from venue local timezone to Saudi Arabia time (Asia/Riyadh, UTC+3)
+ * Returns formatted time string in Saudi timezone
+ */
+export function formatMatchLocalTime(date: string, time: string, venue: string): string {
+  if (!time) return '';
+
+  const utcDate = getMatchUTCDate(date, time, venue);
+  if (!utcDate) return time; // Fallback: show as-is if venue unknown
+
+  try {
+    // Format in Saudi Arabia timezone explicitly (not browser timezone)
     const localTimeStr = utcDate.toLocaleTimeString('ar-SA', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
+      timeZone: SAUDI_TZ,
     });
 
     // Some browsers return "24:00" instead of "00:00"
@@ -351,15 +369,52 @@ export function formatMatchLocalTime(date: string, time: string, venue: string):
 }
 
 /**
+ * Get the match date in Saudi Arabia timezone
+ * Returns a date string like "2026-06-15" representing the date in Saudi time
+ * This handles the case where a late match in the US falls on the next day in Saudi time
+ */
+export function getMatchSaudiDate(date: string, time: string, venue: string): string {
+  if (!time) return date; // No time = just use the original date
+
+  const utcDate = getMatchUTCDate(date, time, venue);
+  if (!utcDate) return date; // Fallback
+
+  try {
+    // Get the date components in Saudi timezone
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: SAUDI_TZ,
+    });
+    // en-CA locale gives YYYY-MM-DD format
+    return formatter.format(utcDate);
+  } catch {
+    return date;
+  }
+}
+
+/**
+ * Format match date in Arabic using Saudi Arabia timezone
+ * This correctly shows the date in Saudi time (which may differ from venue date for late matches)
+ */
+export function formatMatchSaudiDateAr(date: string, time: string, venue: string): string {
+  const saudiDateStr = getMatchSaudiDate(date, time, venue);
+  const months = [
+    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+  ];
+  const [year, month, day] = saudiDateStr.split('-').map(Number);
+  return `${day} ${months[month - 1]} ${year}`;
+}
+
+/**
  * Get the user's local timezone name for display
  */
 export function getUserTimezoneName(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return '';
-  }
+  return SAUDI_TZ;
 }
+
 
 /**
  * Format match time in Arabic-friendly format

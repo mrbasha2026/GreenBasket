@@ -349,20 +349,28 @@ export function formatMatchLocalTime(date: string, time: string, venue: string):
   if (!utcDate) return time; // Fallback: show as-is if venue unknown
 
   try {
-    // Format in Saudi Arabia timezone explicitly (not browser timezone)
-    const localTimeStr = utcDate.toLocaleTimeString('ar-SA', {
-      hour: '2-digit',
+    // Get hours and minutes in Saudi timezone using 12-hour format
+    const hourStr = utcDate.toLocaleTimeString('en-US', {
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: false,
+      hour12: true,
       timeZone: SAUDI_TZ,
     });
-
-    // Some browsers return "24:00" instead of "00:00"
-    if (localTimeStr.startsWith('24')) {
-      return '00:' + localTimeStr.substring(3);
+    // en-US hour12 gives "2:00 PM" or "12:00 AM" etc.
+    // Convert to Arabic 12-hour format with ص/م
+    const match12 = hourStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+    if (match12) {
+      const hours = parseInt(match12[1]);
+      const minutes = match12[2];
+      const isPM = match12[3].toUpperCase() === 'PM';
+      // Arabic period: ص = AM, م = PM
+      const period = isPM ? 'م' : 'ص';
+      // Use Arabic-Indic digits for consistency
+      const toArabicDigits = (n: string | number) => String(n).replace(/[0-9]/g, d => '٠١٢٣٤٥٦٧٨٩'[parseInt(d)]);
+      return `${toArabicDigits(hours)}:${toArabicDigits(minutes)} ${period}`;
     }
-
-    return localTimeStr;
+    // Fallback if regex doesn't match
+    return hourStr;
   } catch {
     return time; // Fallback
   }

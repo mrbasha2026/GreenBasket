@@ -290,53 +290,33 @@ async function directApiFetch(endpoint: string, keyInfo?: ApiKeyInfo | null): Pr
 // Test API key - validates that the key works
 // Uses Netlify Function as proxy (since api-sports.io blocks CORS from browsers)
 export async function testApiKey(key: string, keyType: ApiKeyType = 'apisports'): Promise<{ valid: boolean; error: string | null; accountInfo?: any; detectedType?: ApiKeyType }> {
-  // Try Netlify Function proxy first (works for all key types, avoids CORS)
+  // Use dedicated Netlify Function to test the key (avoids CORS)
   try {
-    const url = `/.netlify/functions/fetch-results?check=version&apiKey=${encodeURIComponent(key)}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const url = `/.netlify/functions/test-api-key?apiKey=${encodeURIComponent(key)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
     if (response.ok) {
       const data = await response.json();
-      // If the function accepted the key (keySource is 'client'), the key is at least formatted correctly
-      // Now let's try a real API call through the function to verify
-      const testUrl = `/.netlify/functions/fetch-results?date=2025-01-01&apiKey=${encodeURIComponent(key)}`;
-      const testResponse = await fetch(testUrl, { signal: AbortSignal.timeout(15000) });
-      if (testResponse.ok) {
-        const testData = await testResponse.json();
-        if (testData.success) {
-          return {
-            valid: true,
-            error: null,
-            accountInfo: {
-              plan: data.keySource === 'client' ? 'API Key (مباشر)' : 'Env Var',
-              requestsToday: '—',
-              requestsLimit: '100/يوم (مجاني)',
-            },
-          };
-        }
-        if (testData.error === 'SUBSCRIPTION_ERROR' || testData.error === 'API_ERROR') {
-          return { valid: false, error: testData.message || 'المفتاح غير مشترك أو غير صحيح' };
-        }
-        if (testData.error === 'INVALID_KEY') {
-          return { valid: false, error: testData.message || 'مفتاح API غير صحيح' };
-        }
-        if (testData.error === 'RATE_LIMIT') {
-          return { valid: true, error: null, accountInfo: { plan: 'مجاني', requestsToday: '100+', requestsLimit: '100/يوم' } };
-        }
+      if (data.valid) {
+        return {
+          valid: true,
+          error: null,
+          accountInfo: data.accountInfo,
+          detectedType: data.detectedType as ApiKeyType | undefined,
+        };
       }
+      return { valid: false, error: data.error || 'مفتاح API غير صحيح' };
     }
-  } catch { /* Fall through to direct test */ }
+  } catch (err: any) { /* Fall through */ }
 
   // Fallback: Try direct API test (only works with RapidAPI from browser)
   if (keyType === 'rapidapi') {
-    const isRapidApi = true;
-    const baseUrl = API_RAPIDAPI_BASE;
     const headers: Record<string, string> = {
       'X-RapidAPI-Key': key,
       'X-RapidAPI-Host': 'api-football-v1.p.rapidapi.com',
     };
 
     try {
-      const response = await fetch(`${baseUrl}/status`, {
+      const response = await fetch(`${API_RAPIDAPI_BASE}/status`, {
         method: 'GET',
         headers,
         signal: AbortSignal.timeout(10000),
@@ -374,8 +354,7 @@ export async function testApiKey(key: string, keyType: ApiKeyType = 'apisports')
     }
   }
 
-  // If we got here, we couldn't test the key
-  return { valid: false, error: 'لا يمكن اختبار المفتاح. تحقق من اتصال الإنترنت وحاول مرة أخرى.' };
+  return { valid: false, error: 'لا يمكن اختبار المفتاح. تحقق من اتصال الإنترنت.' };
 }
 
 // Save API key to localStorage

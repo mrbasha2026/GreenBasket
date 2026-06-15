@@ -68,6 +68,8 @@ export function useAutoResults() {
   const {
     autoResultsEnabled,
     isFetching,
+    fetchError,
+    lastFetchTime,
     setAutoResults,
     setAutoResultsEnabled,
     setFetchState,
@@ -77,6 +79,7 @@ export function useAutoResults() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const liveCheckRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(false);
+  const apiKeyConfiguredRef = useRef<boolean | null>(null);
 
   // Fetch and process results
   const fetchAndProcess = useCallback(async () => {
@@ -91,6 +94,27 @@ export function useAutoResults() {
 
       // Fetch results for today
       const response = await fetchResults(saudiDate);
+
+      // Check for API key not configured
+      if (response.error === 'API_KEY_NOT_CONFIGURED') {
+        apiKeyConfiguredRef.current = false;
+        setFetchState(false, 'مفتاح API غير مُعد - يرجى إعداد API_FOOTBALL_KEY في Netlify', null);
+        return;
+      }
+
+      // Check for invalid response (Netlify functions not deployed)
+      if (response.error === 'INVALID_RESPONSE') {
+        apiKeyConfiguredRef.current = null;
+        setFetchState(false, 'Netlify Functions غير منشورة - تأكد من نشر الموقع مع Functions', null);
+        return;
+      }
+
+      if (response.error === 'NETWORK_ERROR') {
+        setFetchState(false, 'خطأ في الاتصال بالخادم', null);
+        return;
+      }
+
+      apiKeyConfiguredRef.current = true;
 
       if (response.success && response.fixtures.length > 0) {
         const processed = processFixtures(response.fixtures);
@@ -129,6 +153,11 @@ export function useAutoResults() {
   const fetchLive = useCallback(async () => {
     try {
       const response = await fetchLiveMatches();
+
+      // Don't update state if API key not configured
+      if (response.error === 'API_KEY_NOT_CONFIGURED' || response.error === 'INVALID_RESPONSE') {
+        return;
+      }
 
       if (response.success && response.fixtures.length > 0) {
         const processed = processFixtures(response.fixtures);
@@ -188,6 +217,9 @@ export function useAutoResults() {
   return {
     autoResultsEnabled,
     isFetching,
+    fetchError,
+    lastFetchTime,
+    apiKeyConfigured: apiKeyConfiguredRef.current,
     toggleAutoResults: (enabled: boolean) => {
       setAutoResultsEnabled(enabled);
       if (enabled) {

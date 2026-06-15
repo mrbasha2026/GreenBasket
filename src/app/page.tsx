@@ -26,7 +26,7 @@ import { LiveMatches } from '@/components/wc2026/LiveMatches';
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
   const { permission, notificationsEnabled, upcomingCount, requestPermission, disableNotifications } = useMatchNotifications();
-  const { autoResultsEnabled, isFetching, toggleAutoResults, refreshNow } = useAutoResults();
+  const { autoResultsEnabled, isFetching, fetchError, lastFetchTime, apiKeyConfigured, toggleAutoResults, refreshNow } = useAutoResults();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
 
@@ -459,15 +459,21 @@ export default function Home() {
               {autoResultsEnabled ? (
                 <button
                   onClick={() => toggleAutoResults(false)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-[#00A651]/10 text-[#00A651] text-xs font-medium hover:bg-[#00A651]/20 transition-colors"
-                  title="النتائج التلقائية مفعّلة - اضغط للإيقاف"
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                    fetchError
+                      ? 'bg-[#E31837]/10 text-[#E31837] hover:bg-[#E31837]/20'
+                      : 'bg-[#00A651]/10 text-[#00A651] hover:bg-[#00A651]/20'
+                  }`}
+                  title={fetchError || 'النتائج التلقائية مفعّلة - اضغط للإيقاف'}
                 >
                   {isFetching ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : fetchError ? (
+                    <WifiOff className="w-3.5 h-3.5" />
                   ) : (
                     <Wifi className="w-3.5 h-3.5" />
                   )}
-                  <span>نتائج تلقائية</span>
+                  <span>{fetchError ? 'خطأ API' : 'نتائج تلقائية'}</span>
                 </button>
               ) : (
                 <button
@@ -488,6 +494,16 @@ export default function Home() {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
                 </button>
+              )}
+              {autoResultsEnabled && fetchError && (
+                <span className="text-[10px] text-[#E31837] max-w-[120px] truncate" title={fetchError}>
+                  {fetchError}
+                </span>
+              )}
+              {autoResultsEnabled && lastFetchTime && !fetchError && (
+                <span className="text-[10px] text-muted-foreground">
+                  آخر تحديث: {new Date(lastFetchTime).toLocaleTimeString('ar-SA', { timeZone: 'Asia/Riyadh', hour: '2-digit', minute: '2-digit' })}
+                </span>
               )}
               {/* Notification toggle - auto for ALL matches */}
               {notificationsEnabled ? (

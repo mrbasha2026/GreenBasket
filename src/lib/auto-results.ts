@@ -40,6 +40,7 @@ export interface APIResponse {
   count: number;
   fixtures: APIFixture[];
   error?: string;
+  message?: string;
 }
 
 // Team name mapping: our name → possible API names
@@ -143,6 +144,26 @@ export function extractResult(fixture: APIFixture): MatchResult | null {
   return result;
 }
 
+/**
+ * Safely parse JSON from a fetch response.
+ * Returns null if the response is not valid JSON (e.g., HTML error page).
+ */
+async function safeParseJSON(response: Response): Promise<APIResponse | null> {
+  try {
+    const text = await response.text();
+    // Quick check: if it starts with '<', it's HTML, not JSON
+    const trimmed = text.trim();
+    if (trimmed.startsWith('<') || trimmed.startsWith('<!DOCTYPE')) {
+      console.warn('[auto-results] Received HTML instead of JSON - API endpoint may not be deployed');
+      return null;
+    }
+    return JSON.parse(trimmed) as APIResponse;
+  } catch {
+    console.warn('[auto-results] Failed to parse response as JSON');
+    return null;
+  }
+}
+
 // Fetch results from Netlify function
 export async function fetchResults(date?: string): Promise<APIResponse> {
   try {
@@ -152,11 +173,22 @@ export async function fetchResults(date?: string): Promise<APIResponse> {
     if (params.toString()) url += `?${params.toString()}`;
 
     const response = await fetch(url);
-    const data: APIResponse = await response.json();
+
+    // Check if response is OK and is JSON
+    if (!response.ok) {
+      console.warn('[auto-results] fetch-results returned status:', response.status);
+      return { success: false, count: 0, fixtures: [], error: `HTTP_${response.status}` };
+    }
+
+    const data = await safeParseJSON(response);
+    if (!data) {
+      return { success: false, count: 0, fixtures: [], error: 'INVALID_RESPONSE', message: 'الخادم لم يُعد بشكل صحيح - تأكد من نشر Netlify Functions' };
+    }
+
     return data;
   } catch (error) {
-    console.error('Failed to fetch results:', error);
-    return { success: false, count: 0, fixtures: [], error: 'Network error' };
+    console.error('[auto-results] Failed to fetch results:', error);
+    return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR', message: 'خطأ في الاتصال' };
   }
 }
 
@@ -165,11 +197,21 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
   try {
     const url = '/.netlify/functions/fetch-live';
     const response = await fetch(url);
-    const data: APIResponse = await response.json();
+
+    if (!response.ok) {
+      console.warn('[auto-results] fetch-live returned status:', response.status);
+      return { success: false, count: 0, fixtures: [], error: `HTTP_${response.status}` };
+    }
+
+    const data = await safeParseJSON(response);
+    if (!data) {
+      return { success: false, count: 0, fixtures: [], error: 'INVALID_RESPONSE', message: 'الخادم لم يُعد بشكل صحيح' };
+    }
+
     return data;
   } catch (error) {
-    console.error('Failed to fetch live matches:', error);
-    return { success: false, count: 0, fixtures: [], error: 'Network error' };
+    console.error('[auto-results] Failed to fetch live matches:', error);
+    return { success: false, count: 0, fixtures: [], error: 'NETWORK_ERROR', message: 'خطأ في الاتصال' };
   }
 }
 

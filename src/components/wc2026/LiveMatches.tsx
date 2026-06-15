@@ -173,7 +173,7 @@ interface LiveMatchInfo {
 }
 
 export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) => void }) {
-  const { results } = useWC2026Store();
+  const { results, liveMatchStatuses } = useWC2026Store();
   const [currentTime, setCurrentTime] = useState('');
 
   const standings = useMemo(() => calculateGroupStandings(results), [results]);
@@ -214,9 +214,10 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
         const hasResult = !!results[match.id];
 
         let status: 'live' | 'upcoming' | 'finished';
-        if (hasResult || nowTime > matchEndTime) {
+        const apiStatus = liveMatchStatuses[match.id];
+        if (hasResult || nowTime > matchEndTime || apiStatus === 'FT' || apiStatus === 'AET' || apiStatus === 'PEN') {
           status = 'finished';
-        } else if (nowTime >= matchTime) {
+        } else if (nowTime >= matchTime || (apiStatus && ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE'].includes(apiStatus))) {
           status = 'live';
         } else {
           status = 'upcoming';
@@ -234,7 +235,7 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
     // Sort by time
     matches.sort((a, b) => a.utcDate.getTime() - b.utcDate.getTime());
     return matches;
-  }, [results]);
+  }, [results, liveMatchStatuses]);
 
   // Get next few upcoming matches (even if not today)
   const upcomingMatches = useMemo(() => {
@@ -258,7 +259,7 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
 
     matches.sort((a, b) => a.utcDate.getTime() - b.utcDate.getTime());
     return matches.slice(0, 6); // Next 6 matches
-  }, [results]);
+  }, [results, liveMatchStatuses]);
 
   const liveCount = todayMatches.filter(m => m.status === 'live').length;
   const upcomingTodayCount = todayMatches.filter(m => m.status === 'upcoming').length;
@@ -381,6 +382,16 @@ export function LiveMatches({ onMatchClick }: { onMatchClick: (matchId: number) 
                         <span className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                           <span className="text-xs font-bold text-red-500">مباشر</span>
+                          {liveMatchStatuses[match.id] && (
+                            <span className="text-[10px] text-red-400 bg-red-500/10 px-1 rounded">
+                              {liveMatchStatuses[match.id] === '1H' ? 'الشوط الأول' :
+                               liveMatchStatuses[match.id] === 'HT' ? 'استراحة' :
+                               liveMatchStatuses[match.id] === '2H' ? 'الشوط الثاني' :
+                               liveMatchStatuses[match.id] === 'ET' ? 'إضافي' :
+                               liveMatchStatuses[match.id] === 'P' ? 'ركلات جزاء' :
+                               liveMatchStatuses[match.id]}
+                            </span>
+                          )}
                         </span>
                       )}
                       {status === 'upcoming' && (

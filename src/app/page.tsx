@@ -496,9 +496,16 @@ export default function Home() {
                 </button>
               )}
               {autoResultsEnabled && fetchError && (
-                <span className="text-[10px] text-[#E31837] max-w-[120px] truncate" title={fetchError}>
-                  {fetchError}
-                </span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-[#E31837] max-w-[200px] truncate" title={fetchError}>
+                    {fetchError}
+                  </span>
+                  {fetchError.includes('API') && (
+                    <span className="text-[9px] text-muted-foreground max-w-[200px]">
+                      أضف API_FOOTBALL_KEY في متغيرات بيئة Netlify
+                    </span>
+                  )}
+                </div>
               )}
               {autoResultsEnabled && lastFetchTime && !fetchError && (
                 <span className="text-[10px] text-muted-foreground">

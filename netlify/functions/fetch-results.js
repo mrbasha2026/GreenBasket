@@ -1,6 +1,6 @@
 // Netlify Function: Fetch comprehensive match data from API-Football
-// Includes: fixtures, events, lineups, statistics, standings
-// Proxies requests to api-football.com to keep API key server-side
+// v4: Uses v3.football.api-sports.io (NOT RapidAPI) + date-based queries for free plan
+const DEPLOY_VERSION = 'v4-api-sports-direct';
 
 const API_BASE = 'https://v3.football.api-sports.io';
 const API_HOST = 'v3.football.api-sports.io';
@@ -92,6 +92,21 @@ async function apiFetch(url, apiKey) {
 
 exports.handler = async (event) => {
   const apiKey = process.env.API_FOOTBALL_KEY;
+  
+  // Version check endpoint - helps debug deployment issues
+  if ((event.queryStringParameters || {}).check === 'version') {
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        version: DEPLOY_VERSION,
+        apiBase: API_BASE,
+        keyConfigured: !!apiKey,
+        keyPrefix: apiKey ? apiKey.substring(0, 8) + '...' : 'NONE',
+      }),
+    };
+  }
+  
   if (!apiKey) {
     return errorResponse('API_KEY_NOT_CONFIGURED', 'مفتاح API غير مُعد. يرجى إعداد API_FOOTBALL_KEY في متغيرات بيئة Netlify.');
   }

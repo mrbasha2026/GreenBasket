@@ -26,7 +26,7 @@ import { LiveMatches } from '@/components/wc2026/LiveMatches';
 export default function Home() {
   const { results, activeTab, setActiveTab, resetAllResults, hydrate, favoriteTeams, favoriteMatches } = useWC2026Store();
   const { permission, notificationsEnabled, upcomingCount, requestPermission, disableNotifications } = useMatchNotifications();
-  const { autoResultsEnabled, isFetching, fetchError, lastFetchTime, apiKeyConfigured, toggleAutoResults, refreshNow } = useAutoResults();
+  const { autoResultsEnabled, isFetching, fetchError, lastFetchTime, toggleAutoResults, refreshNow } = useAutoResults();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMatchId, setDialogMatchId] = useState<number | null>(null);
 
@@ -455,46 +455,37 @@ export default function Home() {
             {/* Reset & Notification buttons */}
             <div className="mr-auto flex items-center gap-2">
               <ThemeToggle />
-              {/* Auto-results toggle */}
-              {autoResultsEnabled ? (
-                <button
-                  onClick={() => toggleAutoResults(false)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
-                    fetchError
+              {/* Auto-results status indicator */}
+              <button
+                onClick={() => autoResultsEnabled ? toggleAutoResults(false) : toggleAutoResults(true)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                  autoResultsEnabled
+                    ? fetchError
                       ? 'bg-[#E31837]/10 text-[#E31837] hover:bg-[#E31837]/20'
                       : 'bg-[#00A651]/10 text-[#00A651] hover:bg-[#00A651]/20'
-                  }`}
-                  title={fetchError || 'النتائج التلقائية مفعّلة - اضغط للإيقاف'}
-                >
-                  {isFetching ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : fetchError ? (
-                    <WifiOff className="w-3.5 h-3.5" />
-                  ) : (
-                    <Wifi className="w-3.5 h-3.5" />
-                  )}
-                  <span>{fetchError ? 'خطأ API' : 'نتائج تلقائية'}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => toggleAutoResults(true)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 text-muted-foreground text-xs font-medium hover:bg-muted transition-colors"
-                  title="تفعيل جلب النتائج تلقائياً من الإنترنت"
-                >
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+                title={autoResultsEnabled ? (fetchError || 'المزامنة مفعّلة تلقائياً - اضغط للإيقاف') : 'تفعيل المزامنة'}
+              >
+                {isFetching ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : fetchError ? (
                   <WifiOff className="w-3.5 h-3.5" />
-                  <span>تفعيل النتائج</span>
-                </button>
-              )}
-              {autoResultsEnabled && (
-                <button
-                  onClick={refreshNow}
-                  className="p-1 rounded-md hover:bg-muted transition-colors"
-                  title="تحديث النتائج الآن"
-                  disabled={isFetching}
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
-                </button>
-              )}
+                ) : autoResultsEnabled ? (
+                  <Wifi className="w-3.5 h-3.5" />
+                ) : (
+                  <WifiOff className="w-3.5 h-3.5" />
+                )}
+                <span>{fetchError ? 'خطأ API' : autoResultsEnabled ? 'مزامنة تلقائية' : 'تفعيل المزامنة'}</span>
+              </button>
+              <button
+                onClick={refreshNow}
+                className="p-1 rounded-md hover:bg-muted transition-colors"
+                title="تحديث النتائج الآن"
+                disabled={isFetching || !autoResultsEnabled}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${isFetching ? 'animate-spin' : ''}`} />
+              </button>
               {autoResultsEnabled && fetchError && (
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] text-[#E31837] max-w-[200px] truncate" title={fetchError}>

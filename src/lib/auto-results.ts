@@ -184,9 +184,9 @@ function getDirectApiKey(): string | null {
 }
 
 function isNetlifyFunctionsAvailable(): boolean {
-  // If deployed on Netlify (has .netlify path), use functions
-  // Otherwise try direct API
-  return typeof window !== 'undefined' && window.location.hostname.includes('netlify.app');
+  // If deployed on Netlify (has .netlify path), prefer functions
+  // On localhost, we still try functions first but fall back to direct API
+  return typeof window !== 'undefined';
 }
 
 // Direct API fetch (bypasses Netlify Functions, used in local dev)
@@ -245,26 +245,24 @@ function mapDirectFixture(fixture: any): APIFixture {
   };
 }
 
-// Fetch results - tries Netlify Functions first, falls back to direct API
+// Fetch results - tries Netlify Functions first, always falls back to direct API
 export async function fetchResults(date?: string, includeStandings?: boolean): Promise<APIResponse> {
-  // Try Netlify Functions first
-  if (isNetlifyFunctionsAvailable()) {
-    try {
-      let url = '/.netlify/functions/fetch-results';
-      const params = new URLSearchParams();
-      if (date) params.set('date', date);
-      if (includeStandings) params.set('include', 'standings');
-      if (params.toString()) url += `?${params.toString()}`;
+  // Try Netlify Functions first (works on deployed Netlify, may fail locally)
+  try {
+    let url = '/.netlify/functions/fetch-results';
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (includeStandings) params.set('include', 'standings');
+    if (params.toString()) url += `?${params.toString()}`;
 
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await safeParseJSON<APIResponse>(response);
-        if (data) return data;
-      }
-    } catch { /* Fall through to direct API */ }
-  }
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (response.ok) {
+      const data = await safeParseJSON<APIResponse>(response);
+      if (data && data.success) return data;
+    }
+  } catch { /* Fall through to direct API */ }
 
-  // Direct API fallback
+  // Direct API fallback (works everywhere if API key is provided)
   const apiKey = getDirectApiKey();
   if (!apiKey) {
     return { success: false, count: 0, fixtures: [], error: 'API_KEY_NOT_CONFIGURED', message: 'أضف مفتاح API في الإعدادات أو اضبط API_FOOTBALL_KEY في Netlify' };
@@ -306,19 +304,17 @@ export async function fetchResults(date?: string, includeStandings?: boolean): P
   }
 }
 
-// Fetch live matches
+// Fetch live matches - tries Netlify Functions first, always falls back to direct API
 export async function fetchLiveMatches(): Promise<APIResponse> {
   // Try Netlify Functions first
-  if (isNetlifyFunctionsAvailable()) {
-    try {
-      const url = '/.netlify/functions/fetch-live?stats=true';
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await safeParseJSON<APIResponse>(response);
-        if (data) return data;
-      }
-    } catch { /* Fall through */ }
-  }
+  try {
+    const url = '/.netlify/functions/fetch-live?stats=true';
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (response.ok) {
+      const data = await safeParseJSON<APIResponse>(response);
+      if (data && data.success) return data;
+    }
+  } catch { /* Fall through */ }
 
   // Direct API fallback
   const apiKey = getDirectApiKey();
@@ -356,15 +352,72 @@ export async function fetchLiveMatches(): Promise<APIResponse> {
   }
 }
 
-// Fetch single fixture detail
+// Fetch single fixture detail - tries Netlify Functions first, falls back to direct API
 export async function fetchFixtureDetail(fixtureId: number): Promise<APIFixtureDetail> {
+  // Try Netlify Functions first
   try {
     const url = `/.netlify/functions/fetch-results?fixture=${fixtureId}&include=events,lineups,statistics`;
-    const response = await fetch(url);
-    if (!response.ok) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: `HTTP_${response.status}` };
-    const data = await safeParseJSON<APIFixtureDetail>(response);
-    if (!data) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'INVALID_RESPONSE' };
-    return data;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (response.ok) {
+      const data = await safeParseJSON<APIFixtureDetail>(response);
+      if (data && data.success) return data;
+    }
+  } catch { /* Fall through */ }
+
+  // Direct API fallback
+  const apiKey = getDirectApiKey();
+  if (!apiKey) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'API_KEY_NOT_CONFIGURED' };
+
+  try {
+    const fixtureData = await directApiFetch(`/fixtures?id=${fixtureId}`);
+    if (!fixtureData?.response?.[0]) return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'NOT_FOUND' };
+
+    const fixture = mapDirectFixture(fixtureData.response[0]);
+
+    // Fetch events
+    try {
+      const eventsData = await directApiFetch(`/fixtures/events?fixture=${fixtureId}`);
+      if (eventsData?.response) {
+        fixture.events = eventsData.response.map((e: any) => ({
+          time: { elapsed: e.time.elapsed, extra: e.time.extra },
+          type: e.type, detail: e.detail,
+          team: { name: e.team.name, id: e.team.id, logo: e.team.logo },
+          player: { name: e.player.name, id: e.player.id },
+          assist: { name: e.assist.name, id: e.assist.id },
+          comments: e.comments,
+        }));
+      }
+    } catch { /* Skip */ }
+
+    // Fetch lineups
+    try {
+      const lineupsData = await directApiFetch(`/fixtures/lineups?fixture=${fixtureId}`);
+      if (lineupsData?.response) {
+        fixture.lineups = lineupsData.response.map((l: any) => ({
+          team: { name: l.team.name, id: l.team.id, logo: l.team.logo },
+          formation: l.formation,
+          startXI: l.startXI.map((p: any) => ({ player: { name: p.player.name, number: p.player.number, pos: p.player.pos, grid: p.player.grid } })),
+          substitutes: l.substitutes.map((p: any) => ({ player: { name: p.player.name, number: p.player.number, pos: p.player.pos, grid: p.player.grid } })),
+          coach: l.coach?.name,
+        }));
+      }
+    } catch { /* Skip */ }
+
+    // Fetch statistics
+    try {
+      const statsData = await directApiFetch(`/fixtures/statistics?fixture=${fixtureId}`);
+      if (statsData?.response) {
+        fixture.statistics = statsData.response.map((s: any) => ({
+          team: { name: s.team.name, id: s.team.id, logo: s.team.logo },
+          statistics: s.statistics.map((st: any) => ({ type: st.type, value: st.value })),
+        }));
+      }
+    } catch { /* Skip */ }
+
+    return {
+      success: true, fixture, events: fixture.events || [],
+      lineups: fixture.lineups || [], statistics: fixture.statistics || [],
+    };
   } catch (error) {
     return { success: false, fixture: null, events: [], lineups: [], statistics: [], error: 'NETWORK_ERROR' };
   }

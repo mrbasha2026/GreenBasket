@@ -172,7 +172,9 @@ export const useWC2026Store = create<WC2026State>((set) => ({
     const storedPredictions = loadPredictions();
     const storedFavorites = loadFavoriteTeams();
     const storedFavMatches = loadFavoriteMatches();
-    const autoResultsEnabled = localStorage.getItem(AUTO_RESULTS_KEY) === 'true';
+    // Auto-enable by default - only disable if explicitly set to 'false'
+    const autoResultsPref = localStorage.getItem(AUTO_RESULTS_KEY);
+    const autoResultsEnabled = autoResultsPref !== 'false';
     set({ results: storedResults, predictions: storedPredictions, favoriteTeams: storedFavorites, favoriteMatches: storedFavMatches, autoResultsEnabled, hydrated: true });
   },
   toggleFavoriteTeam: (teamName) =>

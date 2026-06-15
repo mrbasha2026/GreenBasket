@@ -79,7 +79,7 @@ function sendEventNotification(title: string, body: string, tag: string) {
 export function useAutoResults() {
   const {
     autoResultsEnabled, isFetching, fetchError, lastFetchTime,
-    matchEvents, liveScores,
+    liveScores,
     setAutoResults, setAutoResultsEnabled, setFetchState,
     setLiveMatchStatuses, setLiveScores,
     setMatchEvents, setMatchLineups, setMatchStats,
@@ -89,7 +89,8 @@ export function useAutoResults() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const liveCheckRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(false);
-  const previousEventsRef = useRef<Record<number, string>>({}); // matchId → last event hash
+  const previousEventsRef = useRef<Record<string, string>>({}); // eventHash → '1'
+  const previousScoresRef = useRef<Record<number, { home: number; away: number; status: string }>>({});
 
   // Check for new events and send notifications
   const checkAndNotifyNewEvents = useCallback((newEventsMap: Record<number, MatchEvent[]>) => {
@@ -103,28 +104,27 @@ export function useAutoResults() {
 
       for (const event of events) {
         // Create a unique hash for this event
-        const eventHash = `${event.time.elapsed}-${event.type}-${event.detail}-${event.player.name}-${event.team.name}`;
+        const eventHash = `${matchId}-${event.time.elapsed}-${event.type}-${event.detail}-${event.player.name}-${event.team.name}`;
 
         // Skip if we already notified about this event
-        const prevHash = previousEventsRef.current[matchId];
-        if (prevHash === eventHash) continue;
+        if (previousEventsRef.current[eventHash]) continue;
+        previousEventsRef.current[eventHash] = '1';
 
         // Only notify for goals, red cards, and match start
         if (event.type === 'Goal') {
           const goalType = event.detail === 'Penalty' ? '(ركلة جزاء)' : event.detail === 'Own Goal' ? '(هدف عكسي)' : '';
+          const teamSide = event.team.name === match.team1 || event.team.name.includes(match.team1) ? team1Ar : team2Ar;
           sendEventNotification(
             `⚽ هدف! ${team1Ar} ضد ${team2Ar}`,
-            `${event.player.name || 'هدف'} ${goalType} - الدقيقة ${event.time.elapsed}'`,
-            `goal-${matchId}-${event.time.elapsed}`
+            `${event.player.name || 'هدف'} ${goalType} (${teamSide}) - الدقيقة ${event.time.elapsed}'`,
+            `goal-${matchId}-${event.time.elapsed}-${event.player.name}`
           );
-          previousEventsRef.current[matchId] = eventHash;
         } else if (event.type === 'Card' && (event.detail === 'Red Card' || event.detail === 'Second Yellow Card')) {
           sendEventNotification(
             `🟥 بطاقة حمراء! ${team1Ar} ضد ${team2Ar}`,
             `${event.player.name} - الدقيقة ${event.time.elapsed}'`,
             `card-${matchId}-${event.time.elapsed}`
           );
-          previousEventsRef.current[matchId] = eventHash;
         }
       }
     }
@@ -140,10 +140,10 @@ export function useAutoResults() {
 
         const team1Ar = TEAMS[match.team1]?.nameAr || match.team1;
         const team2Ar = TEAMS[match.team2]?.nameAr || match.team2;
-        const prevScore = liveScores[matchId];
+        const prevScore = previousScoresRef.current[matchId];
 
         // Check if score changed
-        if (prevScore && (prevScore.homeGoals !== newScore.homeGoals || prevScore.awayGoals !== newScore.awayGoals)) {
+        if (prevScore && (prevScore.home !== newScore.homeGoals || prevScore.away !== newScore.awayGoals)) {
           sendEventNotification(
             `⚽ تحديث النتيجة! ${team1Ar} ${newScore.homeGoals} - ${newScore.awayGoals} ${team2Ar}`,
             `الدقيقة ${newScore.elapsed || '?'}'`,
@@ -157,6 +157,15 @@ export function useAutoResults() {
             `⏸️ نهاية الشوط الأول - ${team1Ar} ${newScore.homeGoals} - ${newScore.awayGoals} ${team2Ar}`,
             `استراحة`,
             `ht-${matchId}`
+          );
+        }
+
+        // Notify when second half starts
+        if (prevScore && prevScore.status === 'HT' && newScore.status === '2H') {
+          sendEventNotification(
+            `▶️ بدء الشوط الثاني - ${team1Ar} ضد ${team2Ar}`,
+            `${team1Ar} ${newScore.homeGoals} - ${newScore.awayGoals} ${team2Ar}`,
+            `2h-${matchId}`
           );
         }
 
@@ -177,9 +186,12 @@ export function useAutoResults() {
             `start-${matchId}`
           );
         }
+
+        // Update previous scores
+        previousScoresRef.current[matchId] = { home: newScore.homeGoals, away: newScore.awayGoals, status: newScore.status };
       }
     },
-    [liveScores]
+    []
   );
 
   // Fetch and process results
@@ -283,7 +295,7 @@ export function useAutoResults() {
     } catch { /* Silent */ }
   }, [setAutoResults, setLiveMatchStatuses, setLiveScores, setMatchEvents, setMatchLineups, setMatchStats, setApiFixtureIds, checkAndNotifyNewEvents, checkAndNotifyScoreChange]);
 
-  // Auto-enable and start fetching on mount
+  // Auto-enable and start fetching on mount - ALWAYS runs
   useEffect(() => {
     if (!mountedRef.current) {
       mountedRef.current = true;

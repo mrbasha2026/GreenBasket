@@ -133,8 +133,10 @@ export function useMatchNotifications() {
     // Clear existing
     const existingBefore = scheduledRef.current.get(matchId);
     const existingStart = scheduledRef.current.get(matchId * 10000 + matchId);
+    const existingHT = scheduledRef.current.get(matchId * 10000 + matchId + 1);
     if (existingBefore) { clearTimeout(existingBefore); scheduledRef.current.delete(matchId); }
     if (existingStart) { clearTimeout(existingStart); scheduledRef.current.delete(matchId * 10000 + matchId); }
+    if (existingHT) { clearTimeout(existingHT); scheduledRef.current.delete(matchId * 10000 + matchId + 1); }
 
     // Schedule "5 minutes before" notification
     if (beforeTime > now.getTime()) {
@@ -158,6 +160,19 @@ export function useMatchNotifications() {
         );
       }, matchTime - now.getTime());
       scheduledRef.current.set(matchId * 10000 + matchId, startTimer);
+    }
+
+    // Schedule "half-time approaching" notification (~50 min after start)
+    const htTime = matchTime + 50 * 60 * 1000;
+    if (htTime > now.getTime()) {
+      const htTimer = setTimeout(() => {
+        showNotification(
+          `⏱️ اقتراب نهاية الشوط الأول - ${team1Name} ضد ${team2Name}`,
+          `الشوط الأول يقترب من نهايته`,
+          matchId * 10000 + matchId + 1
+        );
+      }, htTime - now.getTime());
+      scheduledRef.current.set(matchId * 10000 + matchId + 1, htTimer);
     }
   }, [showNotification, formatTimeAr]);
 
